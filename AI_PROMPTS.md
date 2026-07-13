@@ -44,11 +44,46 @@ list, DB model, business rules, and seed requirements.
 
 ## 2. Database Design
 
-**Prompt:** _(Phase 4)_ "Generate SQLAlchemy 2.0 models + Pydantic schemas for employees, projects,
-seats, seat_allocations following this exact schema and these 8 business rules…"
+**Prompt:** _(Phase 4)_ "Build the backend foundation + schema: SQLAlchemy 2.0 typed models
+(DeclarativeBase, `Mapped[]`) for employees / projects / seats / seat_allocations with the exact
+field names and status enums from PROJECT_PLAN §3 and `frontend/src/types/index.ts`; enforce the
+uniqueness business rules at the DB level (email unique, UNIQUE(floor, zone, bay, seat_number),
+partial unique indexes for one ACTIVE allocation per employee and per seat) plus indexes for the
+Phase 6 filter params; a MetaData naming convention; Alembic wired to `DATABASE_URL` with one
+initial migration that round-trips; Pydantic v2 Create/Update/Read (+ filter-param) schemas;
+`DATABASE_SCHEMA.md`; and a pytest smoke suite — portable across SQLite (dev) and Postgres
+(deploy), no /api/v1 prefix."
 
-**AI output:** _pending Phase 4._
-**Correct / Incorrect / Manual fixes / Verification:** _logged when implemented._
+**AI output:** Four typed models with String+CHECK statuses (portable, no native enums), UTC
+`DateTime(timezone=True)` timestamps, naming-convention MetaData on `Base`; two partial unique
+indexes (`sqlite_where` + `postgresql_where`) carrying rules 1–2 in the schema; Alembic `env.py`
+reading settings with `alembic check` clean; 18 Pydantic schemas mirroring the frontend types
+(SeatCreate derives `seat_code` = `{zone}{bay}-{seat_number}` when omitted); a 10-test smoke
+suite; `DATABASE_SCHEMA.md` mapping each of the 8 business rules to schema- vs service-level
+enforcement; `app/api/v1/` flattened to `app/api/` to match the root-path API decision.
+
+**Correct:** Models, migration, schemas, and tests all worked as generated — autogenerate rendered
+the partial indexes with both dialect `where` clauses on the first try, and the migration
+round-trips (`upgrade head` → `downgrade base` → `upgrade head`) with no drift.
+
+**Incorrect / revised:** The Phase 0 pins didn't install on Python 3.14 — `psycopg2-binary`
+2.9.10 has no cp314 wheel (build fell back to source and failed on missing `pg_config`), and
+pydantic 2.10 / SQLAlchemy 2.0.36 predate cp314 wheels too. Swapped to **psycopg v3**
+(`psycopg[binary]==3.2.13`, prod URL scheme `postgresql+psycopg://`) and bumped
+fastapi 0.128.8 / sqlalchemy 2.0.44 / pydantic 2.12.5 / alembic 1.16.5; dropped `uvicorn[standard]`
+extras (uvloop/httptools wheels lag on 3.14). Also noticed SQLite ships with foreign-key
+enforcement OFF — added a per-connection `PRAGMA foreign_keys=ON` listener so dev matches
+Postgres (caught by the FK-integrity test, which passes invalid ids on purpose).
+
+**Manual fixes:** None beyond the above (caught and fixed in-session).
+
+**Verification:** Fresh venv install from requirements.txt on Python 3.14.3 succeeds;
+`alembic upgrade head` → SQLite DDL inspected via `sqlite_master` (CHECK constraints, named
+FKs/uniques, both partial `WHERE allocation_status = 'ACTIVE'` unique indexes present);
+downgrade/upgrade round-trip + `alembic check` (no drift); pytest 10/10 (row insert with FKs,
+duplicate email, duplicate seat position, second ACTIVE allocation per employee **and** per seat
+all rejected; RELEASED history rows don't block re-allocation; bad status rejected by CHECK);
+uvicorn boots with all models imported — `/`, `/health`, `/docs`, `/openapi.json` all 200.
 
 ---
 

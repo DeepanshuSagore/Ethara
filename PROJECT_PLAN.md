@@ -268,7 +268,7 @@ Each phase ends with: working increment → **commit** → docs updated (README/
 - [x] Phase 1 — UI Design System ✅ theme tokens, 10 UI primitives, app shell + role switcher, full routing skeleton, light/dark
 - [x] Phase 2 — Core UI Screens ✅ typed mock layer (schema-mirroring types, seeded generator, client store with rule-enforcing actions), Dashboard with live aggregates + charts, Employees list/detail, Projects list/detail, interactive seat map + allocation dialog, new-joiner queue with proximity suggestions, assistant chat UI, global search wired
 - [x] Phase 3 — Polish & States ✅ route-level loading skeletons shaped per screen, designed empty states everywhere, error boundaries with retry (Next 16.2 `unstable_retry`), reusable pagination (employees + project team) replacing the row cap, sortable columns + filter chips, mobile audit (dialogs, tabs, topbar search, seat-map wrap), a11y pass (aria-sort, keyboard seat map, toasts, reduced motion), per-route titles, lint 100% clean (demo-role rewritten on useSyncExternalStore)
-- [ ] Phase 4 — Backend Foundation + Schema
+- [x] Phase 4 — Backend Foundation + Schema ✅ SQLAlchemy 2.0 typed models for the four tables (String+CHECK statuses, UTC timestamps, naming-convention MetaData), rules 1/2/6/7 enforced in-schema (partial unique indexes for one-ACTIVE-per-employee/seat, unique email, unique seat position), Alembic wired to DATABASE_URL with a round-tripping initial migration, 18 Pydantic v2 schemas mirroring frontend types, SQLite FK pragma, 10-test pytest smoke suite, DATABASE_SCHEMA.md; deps re-pinned for Python 3.14 (psycopg2-binary → psycopg v3)
 - [ ] Phase 5 — Seed Data
 - [ ] Phase 6 — REST APIs
 - [ ] Phase 7 — Integration

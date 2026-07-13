@@ -1,11 +1,15 @@
-fastapi==0.115.6
-uvicorn[standard]==0.34.0
-sqlalchemy==2.0.36
-alembic==1.14.0
-psycopg2-binary==2.9.10
-pydantic==2.10.4
-pydantic-settings==2.7.0
+# Pins bumped in Phase 4 for Python 3.14 (cp314) wheel availability — see AI_PROMPTS.md §2
+# and DEBUGGING_NOTES.md. psycopg2-binary has no cp314 wheel → psycopg v3 (binary), which
+# uses the `postgresql+psycopg://` SQLAlchemy URL scheme in production.
+fastapi==0.128.8
+uvicorn==0.38.0
+sqlalchemy==2.0.44
+alembic==1.16.5
+psycopg[binary]==3.2.13
+pydantic==2.12.5
+pydantic-settings==2.12.0
 python-dotenv==1.0.1
 faker==33.1.0
 httpx==0.28.1
 groq==0.13.1
+pytest==8.4.2
