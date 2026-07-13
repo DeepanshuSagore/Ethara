@@ -13,12 +13,17 @@ natural-language AI assistant.
 
 - **Employee Management** — directory, profiles, department/designation, lifecycle status.
 - **Project Mapping** — assign employees to projects, track membership & seat demand.
-- **Seat Allocation & Release** — allocate/free seats across Building → Floor → Zone → Seat.
+- **Seat Allocation & Release** — allocate/free seats across Floor → Zone → Bay → Seat.
 - **New Joiner Allocation** — pending-allocation queue and fast onboarding flow.
 - **Search & Filter** — across employees, seats, and projects.
 - **Dashboard & Analytics** — seat utilization, vacancy, headcount, per-floor/project metrics.
-- **AI Assistant** — ask questions in plain English (powered by Groq).
-- **Two modes** — Demo Mode (instant role switcher) and Normal Mode (Clerk login with roles).
+- **AI Assistant** — ask questions in plain English: Groq (Llama 3.3) parses the question into a
+  structured intent, answers are composed from real DB rows, and a deterministic engine takes
+  over automatically if Groq is unavailable — the demo never breaks.
+- **Demo Mode** — instant role switcher (Admin / HR / Project / Employee), no login required.
+- **REST API** — every endpoint from the brief, documented live in Swagger at `/docs`.
+- **Seed data** — deterministic Faker dataset: 5,000 employees · 5,600 seats · 11 projects ·
+  510 available / 100 reserved / 50 maintenance seats · 50 pending joiners.
 
 ---
 
@@ -29,9 +34,9 @@ natural-language AI assistant.
 | Frontend  | Next.js (App Router) · TypeScript · Tailwind CSS · TanStack Query |
 | Backend   | FastAPI · Pydantic · SQLAlchemy 2.0 · Alembic                 |
 | Database  | PostgreSQL                                                    |
-| Auth      | Clerk (Normal Mode) + role switcher (Demo Mode)              |
-| AI        | Groq API (Llama 3.x) with deterministic fallback             |
-| Deploy    | Vercel (frontend) · Render (backend + Postgres)             |
+| Auth      | Demo Mode — role switcher (Admin / HR / Project / Employee)  |
+| AI        | Groq API (Llama 3.3) with deterministic fallback             |
+| Deploy    | Vercel (frontend) · Render (backend + managed PostgreSQL 17) |
 
 ---
 
@@ -41,8 +46,12 @@ natural-language AI assistant.
 Ethara/
 ├── frontend/          # Next.js app (UI, routing, components)
 ├── backend/           # FastAPI app (models, APIs, services, seed)
+├── screenshots/       # captured from the live deployment
 ├── PROJECT_PLAN.md    # Phased build plan
 ├── AI_PROMPTS.md      # AI-tool usage log
+├── DATABASE_SCHEMA.md # ER description + DDL
+├── DEPLOYMENT.md      # deploy steps & gotchas
+├── DEBUGGING_NOTES.md # issues & resolutions
 └── README.md
 ```
 
@@ -80,9 +89,13 @@ through the API (try asking the Assistant: *"Where is my seat? My email is amit@
 
 | Resource        | URL              |
 |-----------------|------------------|
-| Frontend        | _added at deploy_ |
-| Backend / API   | _added at deploy_ |
-| Swagger docs    | _added at deploy_ |
+| Frontend        | https://ethara-snowy.vercel.app |
+| Backend / API   | https://ethara-api-edmu.onrender.com |
+| Swagger docs    | https://ethara-api-edmu.onrender.com/docs |
+
+> Free-tier note: the Render backend cold-starts after ~15 min of inactivity — the **first**
+> request can take ~50 s (the UI shows loading skeletons meanwhile). Everything after that is
+> snappy. Details + deploy steps in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ---
 
@@ -90,9 +103,10 @@ through the API (try asking the Assistant: *"Where is my seat? My email is amit@
 
 - [PROJECT_PLAN.md](./PROJECT_PLAN.md) — phased plan & architecture
 - [AI_PROMPTS.md](./AI_PROMPTS.md) — AI usage log
-- `DATABASE_SCHEMA.md` — schema & DDL _(Phase 4)_
-- `DEPLOYMENT.md` — deploy steps & env _(Phase 9)_
-- `DEBUGGING_NOTES.md` — issues & resolutions _(ongoing)_
+- [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) — schema & DDL
+- [DEPLOYMENT.md](./DEPLOYMENT.md) — deploy steps, env vars, free-tier gotchas
+- [DEBUGGING_NOTES.md](./DEBUGGING_NOTES.md) — issues & resolutions
+- [screenshots/](./screenshots/) — captured from the live deployment
 
 ---
 

@@ -154,3 +154,52 @@ curl pass matched expectations. Design notes worth recording:
   `raise_for_status` are exercised for real).
 - **Verification:** 66/66 in 0.53s (network-free timing); a `forbid_groq` patch that raises on
   any `httpx.post` proves the blank-key and over-long-query paths never attempt a call.
+
+---
+
+## Phase 9 — Deploy
+
+### Render Postgres created via API blocks external connections by default
+- **Symptom:** `alembic upgrade head` from the dev machine against the *external* connection
+  string died during the TLS handshake with `psycopg.OperationalError: SSL connection has been
+  closed unexpectedly` — no auth error, no pg_hba message, retries identical.
+- **Cause:** a Postgres instance created through `POST /v1/postgres` comes up with an empty
+  `ipAllowList` (the dashboard wizard defaults to 0.0.0.0/0, the API does not). Render's proxy
+  silently drops non-allowlisted sources mid-handshake instead of rejecting them.
+- **Fix:** `PATCH /v1/postgres/{id}` with the dev machine's `/32` in `ipAllowList` — kept that
+  narrow deliberately; only the one-time migrate/seed needs external access (the web service
+  uses the internal URL). Connected on the next attempt.
+
+### Bulk seed over a long-haul external connection times out
+- **Symptom:** with the allowlist fixed, `alembic upgrade head` then died mid-run with
+  `SSL SYSCALL error: Operation timed out` on a catalog query.
+- **Fix:** appended `sslmode=require&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=9&connect_timeout=20`
+  (libpq params pass straight through the SQLAlchemy URL to psycopg v3). Migration + full
+  15k-row seed then ran clean; `python -m app.seed.verify` → 21/21 against prod.
+
+### "live" deploy served `x-render-routing: no-server` 404s for ~5 minutes
+- **Symptom:** right after a deploy reported `live`, every request returned a plain-text 404
+  with header `x-render-routing: no-server` — while the service logs showed the instance up and
+  even answering requests (Render's own health probe got `GET / → 200`).
+- **Cause:** propagation lag in Render's edge routing after back-to-back deploys on the free
+  tier; the logs later show `==> Detected service running on port 10000` and routing recovered
+  on its own (~5 min).
+- **Lesson:** treat `no-server` 404s immediately after a deploy as routing lag, not an app
+  crash — check the runtime logs (`GET /v1/logs?ownerId=…&resource=srv-…`) before touching the
+  service; a redeploy would only restart the propagation clock.
+
+### Render's env-var API rejects empty values — the first fallback drill tested nothing
+- **Symptom:** the Groq-down drill (set `GROQ_API_KEY=""`, redeploy, expect deterministic
+  answers) still returned "Floor 3 has the most available seats right now — 115 free…" — an
+  answer only `ai_nl.py`'s `floor_most_available` composer can produce, so Groq was clearly
+  still being called.
+- **Cause:** `PUT /v1/services/{srv}/env-vars/GROQ_API_KEY` with `{"value": ""}` returns
+  **400** `"must provide a value or generateValue must be set to true"` — the earlier drill
+  had swallowed that error and redeployed with the key intact, making the "fallback pass"
+  a false positive.
+- **Fix:** `DELETE` the env var instead (absent ⇒ pydantic-settings default `""` ⇒ the exact
+  no-key path the offline tests exercise), redeploy, re-test — the NL-only phrasing now gets
+  the deterministic guidance message while the brief's email query still answers — then
+  restore the key with a normal PUT and a final deploy.
+- **Lesson:** a fallback drill needs a *discriminating* probe (a query only the primary path
+  can answer), otherwise "it still answers" proves nothing about which path answered.

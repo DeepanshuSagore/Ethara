@@ -492,9 +492,39 @@ _Ongoing — significant bugs, their AI-assisted diagnosis, and fixes are logged
 
 ## 9. Deployment
 
-**Prompt:** _(Phase 9)_ "Produce Render (backend + Postgres) and Vercel (frontend) deploy configs,
-env var lists, and CORS setup."
-**AI output:** _pending Phase 9._
+**Prompt:** _(Phase 9)_ "Deploy the backend + managed Postgres to Render and the frontend to
+Vercel, entirely through their APIs (no dashboard clicking): create the Postgres, run
+alembic + the seeder against it from local, create the web service with the env vars
+(psycopg-scheme DATABASE_URL, Groq key, CORS), create the Vercel project with root dir
+`frontend` and NEXT_PUBLIC_API_URL, link the GitHub repo for auto-deploys, point CORS at the
+final Vercel URL, then verify live end-to-end — including /ai/query with the Groq key removed."
+
+**AI output:** the full pipeline as `curl`/Python calls against `api.render.com/v1` and
+`api.vercel.com`: `POST /v1/postgres` (free, Oregon, PG 17) → external-URL migrate + seed +
+21-check verify from local → `POST /v1/services` (web service, root dir `backend`,
+`PYTHON_VERSION=3.14.3` pinned to match the local venv, Render's new-service default) →
+`POST /v11/projects` on Vercel (framework `nextjs`, `rootDirectory: frontend`, GitHub repo
+linked in the same call) → `POST /v13/deployments` from `main` → CORS_ORIGINS_RAW updated to
+the three Vercel aliases + localhost and redeployed. All URLs/settings recorded in
+[DEPLOYMENT.md](./DEPLOYMENT.md).
+
+**Incorrect / Manual fixes:** three deploy-time surprises, all diagnosed from API responses
+and logs (details in [DEBUGGING_NOTES.md](./DEBUGGING_NOTES.md) §Phase 9): API-created
+Postgres ships with an **empty IP allow list** (external TLS handshakes silently dropped —
+fixed with a `/32` PATCH for the dev machine only); the long-haul bulk seed needed libpq
+keepalives appended to the URL; and a deploy that Render reported `live` served
+`x-render-routing: no-server` 404s for ~5 minutes of edge-routing lag. Also caught: Render's
+env-var API **rejects empty values** (400), so the "blank the Groq key" fallback drill
+initially tested nothing — the first attempt still answered via Groq (exposed by an intent
+that only the NL layer can answer); redone properly by **deleting** the env var (absent ⇒
+pydantic default `""` ⇒ same fallback path), verifying deterministic answers, then restoring.
+
+**Verification:** live `curl` suite against the Render URL (dashboard summary
+4,990/5,600/88%, the brief's amit@ethara.ai example answered via Groq, off-topic scoped
+refusal, all 12 spec paths present in `openapi.json`, no-key fallback drill); headless-Chrome
+pass against the Vercel URL (dashboard metrics, employee search → A1-1, seat map, new-joiner
+queue, assistant suggested prompt + free-form Groq phrasing); screenshots of every main
+screen captured from production into [screenshots/](./screenshots/).
 
 ---
 
