@@ -52,31 +52,42 @@ new joiners — all searchable, with a dashboard and a natural-language AI assis
 
 ---
 
-## 3. Data Model (draft — finalized in Phase 4)
+## 3. Data Model (aligned to the assessment's suggested schema)
 
-Hierarchy to support 5,000 seats: **Building → Floor → Zone → Seat**.
+Seat location is flat: **Floor → Zone → Bay → Seat** (stored as columns on `seats`, per the brief).
+Four tables: `employees`, `projects`, `seats`, `seat_allocations`.
 
-- **Employee**: id, emp_code, full_name, email, phone, department, designation,
-  employment_type (FULL_TIME / CONTRACT / INTERN), join_date, status
-  (ACTIVE / ON_LEAVE / EXITED / PENDING_ALLOCATION), project_id (fk, nullable),
-  seat_id (fk, nullable), is_new_joiner.
-- **Project**: id, code, name, description, department, lead_employee_id (fk),
-  start_date, end_date, status (PLANNING / ACTIVE / ON_HOLD / COMPLETED),
-  required_seats.
-- **Building**: id, name, code, address, total_floors.
-- **Floor**: id, building_id (fk), floor_number, name, total_seats.
-- **Zone**: id, floor_id (fk), name, wing.
-- **Seat**: id, seat_code, zone_id (fk), seat_type (DESK / HOT_DESK / MANAGER / MEETING_ADJ),
-  status (AVAILABLE / OCCUPIED / RESERVED / BLOCKED), employee_id (fk, nullable).
-- **AllocationHistory**: id, seat_id, employee_id, action (ALLOCATED / RELEASED),
-  allocated_by, timestamp, notes.
-- **Department**: id, name, code (may stay an enum for v1).
+- **employees**: id, employee_code, name, email (unique), department, role, joining_date,
+  status (ACTIVE / ON_LEAVE / EXITED / **PENDING_ALLOCATION**), project_id (fk → projects),
+  created_at, updated_at.
+- **projects**: id, name (unique), description, manager_name,
+  status (ACTIVE / ON_HOLD / COMPLETED), created_at.
+  Seed with the 11 named projects: Indigo, Indreed, Mydreed, Preed, Serfy, Oreed,
+  bedegreed, Opreed, Serry, Kaary, Mered.
+- **seats**: id, floor, zone, bay, seat_number, seat_code (e.g. `B4-23`),
+  status (AVAILABLE / OCCUPIED / RESERVED / **MAINTENANCE**), created_at.
+  Unique constraint on (floor, zone, bay, seat_number).
+- **seat_allocations**: id, employee_id (fk), seat_id (fk), project_id (fk),
+  allocation_status (ACTIVE / RELEASED), allocation_date, released_date.
+  The single source of truth for "who sits where" — current seat = latest ACTIVE row.
 
-### Key derived metrics
-- Seat utilization = occupied / total (global, per building, per floor).
-- Vacancy count & rate; reserved vs blocked.
-- Headcount per project / department; projects over/under required_seats.
-- New joiners pending allocation.
+### Key derived metrics (for dashboard)
+- Total employees, total seats, occupied / available / reserved / maintenance counts.
+- Seat utilization = occupied / total (global + per floor).
+- Project-wise allocation (headcount & seats per project).
+- Floor-wise occupancy.
+- New joiners pending allocation (employees with status PENDING_ALLOCATION).
+
+### Business rules (enforced in the allocation service)
+1. One employee → at most one ACTIVE seat allocation.
+2. One seat → at most one ACTIVE employee.
+3. Releasing a seat sets it back to AVAILABLE.
+4. RESERVED / MAINTENANCE seats cannot be allocated until status is changed.
+5. New joiners are prioritized for available seats near their project team (same floor/zone),
+   with alternate-zone suggestions when the preferred zone is full.
+6. Duplicate employee email is rejected.
+7. Duplicate seat_number within the same floor/zone is rejected.
+8. Dashboard metrics recompute on every allocation / release.
 
 ---
 
@@ -147,8 +158,8 @@ backend/
 │   ├── core/                   # config (pydantic-settings), db session, deps
 │   ├── models/                 # SQLAlchemy models
 │   ├── schemas/                # Pydantic request/response schemas
-│   ├── api/v1/                 # routers: employees, projects, seats, allocations, analytics, assistant
-│   ├── services/               # business logic (allocation, analytics, nl-query)
+│   ├── api/                    # routers: employees, projects, seats, dashboard, ai
+│   ├── services/               # business logic (allocation, dashboard, nl-query)
 │   └── seed/                   # Faker-based seed generator
 ├── alembic/                    # migrations
 ├── tests/
@@ -157,15 +168,49 @@ backend/
 └── README.md
 ```
 
-### REST API surface (v1)
-- `GET/POST /employees`, `GET/PATCH/DELETE /employees/{id}`, `?search=&department=&status=&project_id=`
-- `GET/POST /projects`, `GET/PATCH/DELETE /projects/{id}`, `GET /projects/{id}/members`
-- `GET /seats`, `GET /seats/{id}`, `?status=&floor=&building=`
-- `POST /allocations/allocate` (seat_id, employee_id), `POST /allocations/release`
-- `GET /new-joiners` (pending allocation), `POST /new-joiners/{id}/allocate`
-- `GET /analytics/overview`, `/analytics/utilization`, `/analytics/projects`
-- `POST /assistant/query` (natural-language → structured answer)
-- `GET /docs` (Swagger), `GET /redoc`
+### REST API surface — **exact paths from the brief** (mounted at root, no version prefix)
+
+**Employees**
+- `POST /employees` · `GET /employees` (with `?search=&department=&role=&project_id=&status=`)
+- `GET /employees/{id}` · `PUT /employees/{id}` · `DELETE /employees/{id}` (deactivate)
+
+**Projects**
+- `POST /projects` · `GET /projects` · `GET /projects/{id}/employees`
+
+**Seats**
+- `POST /seats` · `GET /seats` (with `?status=&floor=&zone=`) · `GET /seats/available`
+- `POST /seats/allocate` (employee_id, seat_id) · `POST /seats/release` (seat_id)
+
+**Dashboard**
+- `GET /dashboard/summary` · `GET /dashboard/project-utilization` · `GET /dashboard/floor-utilization`
+
+**AI Assistant**
+- `POST /ai/query` → `{ "query": "Where is my seat? My email is amit@ethara.ai" }`
+  returns `{ "answer": "..." }`
+
+**Docs** — `GET /docs` (Swagger) · `GET /redoc`
+
+> Extra convenience endpoints (e.g. new-joiner suggestions) may be added, but every path
+> above is implemented verbatim so automated grading finds them.
+
+---
+
+## 5b. Seed Data Requirements (exact, from the brief)
+
+| Item                          | Requirement            | Plan |
+|-------------------------------|------------------------|------|
+| Employees                     | 5,000                  | 5,000, emails `@ethara.ai` |
+| Floors                        | ≥ 5                    | 5 floors |
+| Zones                         | ≥ 10                   | 10 (2 per floor: A–B) |
+| Seats                         | ≥ 5,500                | ~5,600 (floor→zone→bay→seat) |
+| Projects                      | ≥ 10                   | 11 named projects |
+| Available seats               | ≥ 500                  | ✅ enforced by generator |
+| Reserved seats                | ≥ 100                  | ✅ enforced |
+| Maintenance seats             | (some)                 | ~50 |
+| Employees pending allocation  | ≥ 50                   | ✅ status PENDING_ALLOCATION |
+
+Seat code format: `{zone}{bay}-{seat}` → e.g. `B4-23`. Each employee maps to exactly one active
+project; ~4,950 have an ACTIVE seat allocation, ≥50 remain pending.
 
 ---
 
@@ -180,8 +225,8 @@ Each phase ends with: working increment → **commit** → docs updated (README/
 | **2** | Core UI Screens (mock data) | Every screen looks/feels complete | Dashboard, Employees (list+detail), Projects, Seats (seat map), New Joiners, Search, Assistant UI — all on typed mock data |
 | **3** | Polish & States | Production-grade feel | Loading/empty/error states, responsive, a11y, toasts, filters, pagination |
 | **4** | Backend Foundation + Schema | DB + models + migrations | FastAPI app, SQLAlchemy models, Alembic, Pydantic schemas, DB schema doc |
-| **5** | Seed Data | ~5,000 employees + seats + projects | Faker seed script, buildings/floors/zones/seats, allocations, verify counts |
-| **6** | REST APIs | All endpoints + Swagger | CRUD, search/filter, allocation, analytics endpoints, Swagger documented |
+| **5** | Seed Data | Exact seed targets met | Faker seed: 5,000 employees · 5 floors · 10 zones · ~5,600 seats · 11 projects · ≥500 available · ≥100 reserved · ≥50 pending; verify counts |
+| **6** | REST APIs | All **exact** endpoints + Swagger | Employees/Projects/Seats/Dashboard/AI routers at spec paths, allocation rules enforced, Swagger documented |
 | **7** | Frontend ↔ Backend Integration | Replace mocks with real API | Typed API client, TanStack Query hooks, wire every screen, env config |
 | **8** | AI Assistant | NL query interface end-to-end | Claude-backed `/assistant/query`, chat UI wired, suggested prompts, guardrails |
 | **9** | Deploy + Final Docs | Live + submission bundle | Vercel + Render deploy, env, screenshots, README, AI_PROMPTS, schema, deployment & debugging notes |
@@ -219,7 +264,7 @@ Each phase ends with: working increment → **commit** → docs updated (README/
 ---
 
 ## 10. Current Status
-- [x] Phase 0 — Foundation & Docs (in progress)
+- [x] Phase 0 — Foundation & Docs ✅ committed (`8b9d5eb`)
 - [ ] Phase 1 — UI Design System
 - [ ] Phase 2 — Core UI Screens
 - [ ] Phase 3 — Polish & States
