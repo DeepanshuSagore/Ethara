@@ -90,7 +90,32 @@ app shell (sidebar/topbar/role-switcher), and screens for dashboard, employees, 
 
 **AI output:** Scaffolded Next.js 16 (App Router, TS, Tailwind v4). Design system + screens logged
 per phase.
-**Correct / Incorrect / Manual fixes / Verification:** _logged per phase._
+
+### Phase 1 — UI Design System
+
+**Prompt:** "Build the Phase 1 design system: Tailwind v4 `@theme` tokens (indigo/violet, light +
+dark, radius/shadow, tabular numerals), reusable primitives (Button, Card, Input, Badge, Table,
+Dialog, Select, Tabs, Skeleton, Toast) on Radix + lucide-react with a `cn()` util, a collapsible
+app shell (Sidebar/Topbar/RoleSwitcher/PageHeader) in a `(dashboard)` route group, and a full
+routing skeleton (Dashboard, Employees, Projects, Seats, New Joiners, Analytics, Assistant,
+not-found) — accessible and responsive."
+
+**Correct:** Semantic-token architecture (CSS vars per theme mapped via `@theme inline`) worked
+first try; all 10 primitives typechecked; class-driven dark mode via next-themes with
+`@custom-variant dark`; demo-role context persisted to localStorage; routing skeleton produced all
+8 routes as static pages; a11y touches (skip link, aria-current nav, focus-visible rings,
+Escape-to-close mobile drawer) included.
+
+**Incorrect:** First draft of Dialog used `tailwindcss-animate` plugin classes
+(`animate-out`, `fade-out-0`) that don't exist in this Tailwind v4 setup — replaced with a
+custom `--animate-in` keyframe defined in `@theme`. Deleting the old root `page.tsx` left stale
+generated types in `.next` that failed `tsc` until a clean rebuild.
+
+**Manual fixes:** None beyond the above (caught and fixed during the same session).
+
+**Verification:** `tsc --noEmit` clean; `next build` green (8 static routes); dev server booted and
+every route curl-checked for 200 + expected content (404 page verified too); compiled CSS inspected
+to confirm brand tokens, `.dark` block, and `text-metric`/`tabular-nums` utilities were emitted.
 
 ---
 

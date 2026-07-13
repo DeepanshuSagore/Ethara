@@ -265,7 +265,7 @@ Each phase ends with: working increment → **commit** → docs updated (README/
 
 ## 10. Current Status
 - [x] Phase 0 — Foundation & Docs ✅ committed (`8b9d5eb`)
-- [ ] Phase 1 — UI Design System
+- [x] Phase 1 — UI Design System ✅ theme tokens, 10 UI primitives, app shell + role switcher, full routing skeleton, light/dark
 - [ ] Phase 2 — Core UI Screens
 - [ ] Phase 3 — Polish & States
 - [ ] Phase 4 — Backend Foundation + Schema
