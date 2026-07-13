@@ -1,6 +1,6 @@
 """Seat request/response schemas (mirrors frontend Seat type)."""
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, model_validator
 
@@ -49,3 +49,14 @@ class SeatFilterParams(BaseModel):
     status: Optional[SeatStatus] = None
     floor: Optional[int] = None
     zone: Optional[str] = None
+
+
+# Business rule 5 — ranking labels, mirrors frontend SeatSuggestion.
+SuggestionReason = Literal["team-zone", "same-floor", "alternate-zone"]
+
+
+class SeatSuggestionRead(BaseModel):
+    """One ranked new-joiner seat suggestion (GET /seats/suggestions)."""
+
+    seat: SeatRead
+    reason: SuggestionReason

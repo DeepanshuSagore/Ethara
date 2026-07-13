@@ -2,12 +2,14 @@
 from collections.abc import Generator
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401 — register all tables on Base
-from app.core.database import Base
+from app.core.database import Base, get_db
+from app.main import app as fastapi_app
 
 
 @pytest.fixture()
@@ -37,3 +39,18 @@ def db(engine) -> Generator[Session, None, None]:
         yield session
     finally:
         session.close()
+
+
+@pytest.fixture()
+def client(db) -> Generator[TestClient, None, None]:
+    """API test client whose requests share the test's in-memory session."""
+
+    def override_get_db():
+        yield db
+
+    fastapi_app.dependency_overrides[get_db] = override_get_db
+    try:
+        with TestClient(fastapi_app) as test_client:
+            yield test_client
+    finally:
+        fastapi_app.dependency_overrides.clear()

@@ -132,11 +132,38 @@ across bay boundaries (`A1-7` → `A2-8`, `A80-560`). Existing pytest schema sui
 
 ## 3. Backend APIs
 
-**Prompt:** _(Phase 6)_ "Implement FastAPI routers at these exact paths (…/employees, /seats/allocate,
-/dashboard/summary, /ai/query …) with search/filter query params and proper status codes."
+**Prompt:** _(Phase 6)_ "Implement the REST APIs at the exact spec paths from PROJECT_PLAN §5,
+mounted at root (no /api/v1): employees CRUD with `?search=&department=&role=&project_id=&status=`
+and DELETE-as-deactivate; projects + `/projects/{id}/employees`; seats with filters,
+`/seats/available`, `/seats/allocate`, `/seats/release`; the three dashboard endpoints computed
+live from the DB; and `POST /ai/query` with a deterministic keyword fallback. Routers stay thin in
+`app/api/`, business logic in `app/services/`; reuse the Phase 4 Pydantic schemas; pre-check rules
+for friendly 409s with the DB constraints as the race fallback; 201/404/409/422 status codes and
+Swagger tags/summaries throughout."
 
-**AI output:** _pending Phase 6._
-**Correct / Incorrect / Manual fixes / Verification:** _logged when implemented._
+**AI output:** Five routers (`app/api/{employees,projects,seats,dashboard,ai}.py`) mounted in
+`main.py` with `openapi_tags`, three services (`app/services/{allocation,dashboard,ai_query}.py`),
+and three new schema modules (dashboard metrics, AI query, seat suggestion — reusing the Phase 4
+Create/Update/Read + filter-param schemas for everything else; the filter models bind as query
+params via `Depends()`). Convenience extras beyond the spec: `GET /projects/{id}`,
+`GET /seats/{id}`, `GET /seats/suggestions` (rule 5, needed by the Phase 7 new-joiners screen),
+and optional `limit`/`offset` on the two big list endpoints. Emails are normalized (trim +
+lowercase) on create/update; `PUT` with `status=EXITED` and `DELETE` both release the seat so no
+ACTIVE allocation is orphaned; deletes are soft (row + allocation history survive).
+
+**Correct:** All 26 routes registered at the exact spec paths on the first boot; the 37 new
+endpoint tests passed on the first run; OpenAPI lists every brief path verbatim (locked by a test).
+
+**Incorrect / revised:** Nothing material — one design choice worth noting: path params are named
+`{id}` (not `{employee_id}`) so `/docs` shows `/employees/{id}` exactly as the brief writes it.
+
+**Manual fixes:** None.
+
+**Verification:** `pytest` 47/47 (10 Phase 4 schema tests + 37 new); then against a live uvicorn
+on a fresh seeded DB: every spec path curl-checked (counts match the §5b targets — 510 available,
+88% utilization, project 1 = 455 headcount / 450 seated / home zone 1A), each rule rejection
+exercised live with its status code and message, 404s for unknown ids, 422 for bad enum values,
+`/docs` + `/redoc` 200. DB reseeded to pristine state afterwards.
 
 ---
 
@@ -144,10 +171,37 @@ across bay boundaries (`A1-7` → `A2-8`, `A80-560`). Existing pytest schema sui
 
 **Prompt:** _(Phase 6)_ "Implement allocation/release enforcing: one active seat per employee, one
 active employee per seat, reserved/maintenance not allocatable, new-joiner proximity to project team
-with alternate-zone fallback, and dashboard recompute."
+with alternate-zone fallback, and dashboard recompute. Pre-check for friendly errors; the DB's
+partial unique indexes are the last line of defense (translate IntegrityError into clean 409s).
+Mirror the mock store's behavior so Phase 7 is a mechanical swap."
 
-**AI output:** _pending Phase 6._
-**Correct / Incorrect / Manual fixes / Verification:** _logged when implemented._
+**AI output:** `app/services/allocation.py`. `allocate_seat`: 404s for unknown ids, then 409s for
+EXITED employee, an existing ACTIVE allocation (rule 1), and any non-AVAILABLE seat (rules 2 & 4 —
+seat status is kept in lockstep with its ACTIVE allocation, so OCCUPIED covers rule 2); on success
+the allocation row, `seat.status=OCCUPIED`, and PENDING→ACTIVE employee promotion commit together,
+with `IntegrityError → rollback → 409` catching races the pre-checks miss. `release_seat` (rule 3):
+allocation → RELEASED + `released_date`, seat → AVAILABLE, one transaction; 409 when there's no
+active allocation. The same `_release` transition backs `DELETE /employees/{id}` and
+`PUT status=EXITED`. `suggest_seats` (rule 5): team zone = the (floor, zone) where most of the
+employee's project-mates with ACTIVE allocations sit (SQL GROUP BY), falling back to the project's
+seeded home zone, then ranks AVAILABLE seats team-zone → same-floor → alternate-zone (top 3 by
+default) — the same algorithm as the mock store's `suggestSeatsFor`. Dashboard metrics (rule 8) are
+computed live per request in `app/services/dashboard.py` from GROUP BY aggregates — no cache to
+invalidate.
+
+**Correct:** All rule behavior matched the mock store's semantics on the first test run, including
+the messages ("… already has an active seat.", "Seat B4-23 is reserved and cannot be allocated.").
+
+**Incorrect / revised:** Nothing material.
+
+**Manual fixes:** None.
+
+**Verification:** Each rule has a happy-path AND rejection pytest (see §7), plus live curl checks
+against the seeded DB: pending employee #5000 (project 6, home zone 3B) got team-zone suggestions
+in floor 3 zone B, allocate → 201 with the employee flipping to ACTIVE, second seat → 409, seat
+already occupied → 409, reserved/maintenance → 409, release → 200 with `released_date` set and the
+seat AVAILABLE again, double release → 409; deactivating Amit freed seat #1 and the very next
+dashboard/AI reads reflected it (rule 8).
 
 ---
 
@@ -308,8 +362,32 @@ and the seat dialog fits a phone viewport (343px). Loading states proven at the 
 
 ## 7. Testing
 
-**Prompt:** _(Phase 6+)_ "Write pytest checks for allocation rules and endpoint contracts."
-**AI output:** _pending._
+**Prompt:** _(Phase 6)_ "Write pytest coverage for the endpoint contracts and every allocation
+rule — happy path and each rejection — alongside the Phase 4 schema smoke suite, on a fresh
+in-memory SQLite DB per test."
+
+**AI output:** `tests/test_api.py` (37 tests) + a `client` fixture in `conftest.py` that overrides
+the `get_db` dependency with the test's in-memory session. Coverage: an OpenAPI test asserting
+every brief path is present verbatim; employees (create 201 with PENDING default + email
+normalization, duplicate email 409 case-insensitively [rule 6], unknown project 404, bad status
+422, search + every filter param, get/put/delete 404s, PUT dup-email 409, PUT status=EXITED and
+DELETE both releasing the seat with history kept [rule 3]); projects (create 201, dup name 409,
+list, `/employees` sub-route + 404); seats (seat_code derivation, duplicate position 409 vs. same
+position on another floor 201 [rule 7], list filters, `/available`); allocation lifecycle (happy
+path 201 with seat→OCCUPIED and PENDING→ACTIVE, rule 1/2/4 rejections each as their own test,
+unknown-id 404s, EXITED employee 409, release → re-allocate on the freed seat, release-without-
+active 409); suggestions (rule 5 ranking asserted in order, home-zone fallback when no teammates
+are seated, 404); dashboard (exact summary/project/floor numbers for the fixture dataset, and a
+recompute test asserting counts move after allocate and return after release [rule 8]); AI (the
+brief's exact email query, pending-joiner by name, floor availability, project occupancy,
+utilization, fallback, empty query 422).
+
+**Correct:** 47/47 on the first full run (0.4s); no flakes across reruns.
+
+**Incorrect / Manual fixes:** None.
+
+**Verification:** `pytest -q` → 47 passed (10 Phase 4 + 37 Phase 6); the same behaviors were then
+independently curl-verified against a live server on the full seeded dataset (§3, §4).
 
 ---
 
