@@ -1,7 +1,8 @@
 """AI assistant router — POST /ai/query per the brief.
 
-Phase 6 ships the deterministic keyword engine (works offline, answers from
-the live DB); Phase 8 layers Groq NL parsing on top with this as fallback.
+Phase 8: Groq NL parsing (ai_nl) in front of the Phase 6 deterministic
+keyword engine, which remains the guaranteed fallback — the endpoint answers
+from the live DB with or without a GROQ_API_KEY and never 500s.
 """
 from typing import Annotated
 
@@ -10,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.schemas import AiQueryRequest, AiQueryResponse
-from app.services import ai_query as ai_service
+from app.services import ai_nl as ai_service
 
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 

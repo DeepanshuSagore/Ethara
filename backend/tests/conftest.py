@@ -8,8 +8,17 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401 — register all tables on Base
+from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app as fastapi_app
+
+
+@pytest.fixture(autouse=True)
+def offline_groq(monkeypatch):
+    """Tests never reach Groq: a blank key short-circuits the Phase 8 NL layer
+    to the deterministic engine, even when backend/.env holds a real key.
+    Groq-layer tests opt back in with a fake key and a mocked HTTP transport."""
+    monkeypatch.setattr(settings, "groq_api_key", "")
 
 
 @pytest.fixture()

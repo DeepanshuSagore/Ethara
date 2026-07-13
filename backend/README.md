@@ -11,7 +11,8 @@ alembic upgrade head          # create the schema (SQLite by default)
 python -m app.seed.run        # seed data (see below)
 uvicorn app.main:app --reload
 ```
-Run the tests with `pytest` (47: schema smoke + endpoint contracts + every allocation rule).
+Run the tests with `pytest` (66: schema smoke + endpoint contracts + every allocation rule +
+the mocked Groq NL layer — the suite is fully offline and never calls Groq).
 The DB is `DATABASE_URL`-driven: SQLite locally, PostgreSQL (`postgresql+psycopg://…`,
 psycopg v3) on Render — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md).
 - API: http://localhost:8000
@@ -42,7 +43,7 @@ psycopg v3) on Render — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md).
 | `GET /dashboard/summary` | Live headline metrics (rule 8) | — |
 | `GET /dashboard/project-utilization` | Headcount/seated/home zone per project | — |
 | `GET /dashboard/floor-utilization` | Seat counts + occupancy per floor | — |
-| `POST /ai/query` | `{"query": "…"}` → `{"answer": "…"}` — deterministic keyword engine (Groq in Phase 8) | 422 empty query |
+| `POST /ai/query` | `{"query": "…"}` → `{"answer": "…"}` — Groq NL parsing over the deterministic keyword engine (Phase 8, see below) | 422 empty query |
 
 Example:
 ```bash
@@ -50,6 +51,21 @@ curl -X POST localhost:8000/ai/query -H 'Content-Type: application/json' \
   -d '{"query": "Where is my seat? My email is amit@ethara.ai"}'
 # → {"answer":"Amit Sharma is seated on Floor 1, Zone A, Bay 1, Seat A1-1. …"}
 ```
+
+## AI assistant (Phase 8)
+
+`POST /ai/query` runs NL → structured query: Groq (`GROQ_MODEL`, default
+`llama-3.3-70b-versatile`, JSON mode via its OpenAI-compatible API) parses the question into an
+intent + entities, `app/services/ai_nl.py` executes that intent against the database, and the
+answer is composed from real DB rows — the model never free-generates facts. On any failure
+(no `GROQ_API_KEY`, HTTP error, timeout, rate limit, bad JSON, unknown intent, low confidence)
+it falls back to the Phase 6 deterministic keyword engine (`app/services/ai_query.py`), so the
+endpoint works offline and never 500s. Off-topic or prompt-injection queries get a scoped
+refusal; queries over 500 chars skip Groq entirely.
+
+No extra dependency: the Groq call is a single `httpx` POST (the groq SDK warns on
+Python 3.14 — see [../DEBUGGING_NOTES.md](../DEBUGGING_NOTES.md)). Set `GROQ_API_KEY` in
+`.env` (see `.env.example`); leave it empty to run purely deterministic.
 
 ## Seed data
 ```bash
@@ -73,7 +89,7 @@ app/
 ├── models/        # SQLAlchemy models
 ├── schemas/       # Pydantic schemas
 ├── api/           # REST routers, mounted at root paths (thin — Phase 6)
-├── services/      # business logic: allocation rules, dashboard, AI query (Phase 6)
+├── services/      # business logic: allocation rules, dashboard, AI query (Phase 6) + Groq NL layer (Phase 8)
 └── seed/          # Faker seed generator   (Phase 5)
 ```
 

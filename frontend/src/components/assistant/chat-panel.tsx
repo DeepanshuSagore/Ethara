@@ -20,7 +20,7 @@ const WELCOME: ChatMessage = {
   id: 1,
   role: "assistant",
   content:
-    "Hi! I answer questions about seats, projects and availability straight from the live directory. Try one of the suggestions below — for example, ask where someone sits by name or email.",
+    "Hi! Ask me anything about seats, projects and availability in your own words — Groq understands the question and every answer comes straight from the live directory. Try a suggestion below, or ask things like “which floor has the most free seats?”",
 };
 
 export function ChatPanel() {
@@ -48,7 +48,7 @@ export function ChatPanel() {
     setMessages((prev) => [...prev, { id: nextId.current++, role: "user", content: trimmed }]);
     setInput("");
 
-    // POST /ai/query — deterministic engine today, Groq NL in Phase 8.
+    // POST /ai/query — Groq NL parsing with a deterministic DB fallback.
     aiQuery.mutate(trimmed, {
       onSuccess: ({ answer }) =>
         setMessages((prev) => [
@@ -72,7 +72,7 @@ export function ChatPanel() {
       <PageHeader
         title="Assistant"
         description="Ask natural-language questions about seats, projects and availability."
-        actions={<Badge variant="outline">Answers from the live API · Groq NL in Phase 8</Badge>}
+        actions={<Badge variant="outline">Groq NL · answers from the live directory</Badge>}
       />
 
       <Card className="flex h-[calc(100dvh-14rem)] min-h-[28rem] flex-col">

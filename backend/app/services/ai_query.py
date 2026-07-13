@@ -3,8 +3,9 @@
 Mirrors the frontend mock assistant (frontend/src/components/assistant/
 chat-panel.tsx mockReply) so the endpoint works offline with no API key:
 employee seat lookup by email or name, floor availability, project occupancy,
-and overall utilization — all answered live from the database. Phase 8 puts
-Groq (NL → structured query) in front; this stays as the guaranteed fallback.
+and overall utilization — all answered live from the database. Phase 8's Groq
+layer (ai_nl.py) sits in front and reuses the answer composers below; this
+module stays the guaranteed fallback on any Groq failure or missing key.
 """
 import re
 
@@ -25,18 +26,18 @@ def answer_query(db: Session, query: str) -> str:
     # project → utilization → fallback.
     employee = _find_employee(db, q)
     if employee is not None:
-        return _employee_answer(db, employee)
+        return employee_answer(db, employee)
 
     floor_match = _FLOOR_RE.search(q)
     if "available" in q and floor_match:
-        return _floor_availability_answer(db, int(floor_match.group(1)))
+        return floor_availability_answer(db, int(floor_match.group(1)))
 
     project = _find_project(db, q)
     if project is not None:
-        return _project_answer(db, project)
+        return project_answer(db, project)
 
     if "utilization" in q or "occupied" in q or "occupancy" in q:
-        return _utilization_answer(db)
+        return utilization_answer(db)
 
     return (
         "I couldn't match that to the directory. Try asking about a specific "
@@ -61,7 +62,7 @@ def _find_employee(db: Session, q: str) -> Employee | None:
     return None
 
 
-def _employee_answer(db: Session, employee: Employee) -> str:
+def employee_answer(db: Session, employee: Employee) -> str:
     project = db.get(Project, employee.project_id)
     seat = db.scalar(
         select(Seat)
@@ -87,7 +88,7 @@ def _employee_answer(db: Session, employee: Employee) -> str:
     return f"{employee.name} ({project.name}) has no active seat allocation right now."
 
 
-def _floor_availability_answer(db: Session, floor: int) -> str:
+def floor_availability_answer(db: Session, floor: int) -> str:
     available = db.scalars(
         select(Seat)
         .where(Seat.floor == floor, Seat.status == "AVAILABLE")
@@ -110,7 +111,7 @@ def _find_project(db: Session, q: str) -> Project | None:
     return None
 
 
-def _project_answer(db: Session, project: Project) -> str:
+def project_answer(db: Session, project: Project) -> str:
     headcount = db.scalar(
         select(func.count())
         .select_from(Employee)
@@ -132,7 +133,7 @@ def _project_answer(db: Session, project: Project) -> str:
     )
 
 
-def _utilization_answer(db: Session) -> str:
+def utilization_answer(db: Session) -> str:
     s = dashboard_service.summary(db)
     return (
         f"Overall seat utilization is {s['utilization_pct']}% — "

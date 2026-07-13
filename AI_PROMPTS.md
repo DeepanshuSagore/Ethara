@@ -207,12 +207,43 @@ dashboard/AI reads reflected it (rule 8).
 
 ## 5. AI Assistant
 
-**Prompt:** _(Phase 8)_ "Build a natural-language query interface (Groq Llama) that answers seat,
-project, availability, team-location, and utilization questions, with a deterministic keyword
-fallback when no API key is present."
+**Prompt:** _(Phase 8)_ "Put Groq (Llama 3.3, JSON mode) in front of the Phase 6 deterministic
+engine behind `POST /ai/query`: NL → structured intent (intent + email/name/floor/project
+entities), execute the intent against the DB with the same data access the keyword engine uses,
+compose the answer from real rows, and fall back to the deterministic engine on any failure —
+missing key, HTTP/API error, timeout, rate limit, malformed JSON, unknown intent or low
+confidence — so the endpoint never 500s and the demo works offline."
 
-**AI output:** _pending Phase 8._
-**Correct / Incorrect / Manual fixes / Verification:** _logged when implemented._
+**AI output:** [backend/app/services/ai_nl.py](backend/app/services/ai_nl.py) — one httpx POST to
+Groq's OpenAI-compatible chat-completions API (temperature 0, `response_format: json_object`,
+4-second timeout, 200 max tokens) classifying into 8 intents: the four Phase 6 ones
+(`employee_seat`, `floor_availability`, `project_occupancy`, `utilization`) plus
+`floor_most_available`, `project_on_floor`, `off_topic` and `unknown`. Executors reuse the Phase 6
+answer composers (promoted to public in `ai_query.py`) and add two new DB queries (most-available
+floor ranking; project×floor active-allocation count with a "team mostly sits on Floor X" hint).
+19 mocked tests in [backend/tests/test_ai_nl.py](backend/tests/test_ai_nl.py).
+
+**Correct:** the structured-query architecture held — every answer string is composed
+server-side from DB rows; the model only ever picks an intent and copies entities out of the
+question. All live paraphrases worked first try ("does anyone from Serfy sit on floor 3?",
+"how full is the office?", "which floor has the most free seats?", first-name-only lookups).
+
+**Incorrect / Manual fixes:**
+- The groq SDK import trips a `pydantic.v1` UserWarning on Python 3.14 → dropped it for a direct
+  httpx call (already pinned); one less dependency.
+- A prompt-injection probe ("ignore all previous instructions…") derailed Llama into emitting a
+  *different* JSON shape than requested. The strict schema validation (intent whitelist +
+  confidence floor) rejected it and the user saw only the deterministic fallback — documented as
+  the load-bearing guardrail, and the one echo of model-extracted text (the "couldn't find X"
+  message) is whitespace-collapsed and capped at 80 chars.
+- Guardrails: queries > 500 chars never reach Groq (fallback answers them); blank key
+  short-circuits offline; Groq errors are logged server-side, never surfaced.
+
+**Verification:** pytest 66/66 offline (autouse fixture blanks the key so the 47 existing tests
+never touch the network; the 19 new tests mock `httpx.post` with real `httpx.Response` objects);
+live curl pass with the real key (brief's example + 5 paraphrases + off-topic refusal + 422);
+second server with `GROQ_API_KEY=""` env override confirmed every fallback answer; headless-Chrome
+pass 6/6 on `/assistant` (suggested prompt, Groq-only phrasing, refusal, updated copy).
 
 ---
 
