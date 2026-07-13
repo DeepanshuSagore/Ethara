@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/use-toast";
 import { useRole } from "@/lib/demo-role";
 import { useMockData } from "@/lib/mock/store";
@@ -60,12 +61,22 @@ export function NewJoinersScreen() {
 
       {pendingJoiners.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center gap-3 py-16 text-center">
-            <CircleCheck className="size-8 text-success" aria-hidden="true" />
-            <h2 className="text-lg font-semibold">Queue is clear</h2>
-            <p className="text-sm text-muted-foreground">
-              Every new joiner has a seat. Add a new joiner to start an allocation.
-            </p>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={CircleCheck}
+              iconWrapClassName="bg-success/15 text-success"
+              title="Queue is clear"
+              description="Every new joiner has a seat. Add a new joiner to start an allocation."
+              action={
+                canManage ? (
+                  <AddJoinerDialog>
+                    <Button variant="outline">
+                      <UserPlus /> Add new joiner
+                    </Button>
+                  </AddJoinerDialog>
+                ) : undefined
+              }
+            />
           </CardContent>
         </Card>
       ) : (

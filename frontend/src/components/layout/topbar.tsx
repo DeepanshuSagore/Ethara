@@ -34,7 +34,8 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
         <Menu className="size-5" />
       </Button>
 
-      <form onSubmit={handleSubmit} className="relative hidden w-full max-w-sm md:block">
+      {/* Visible at every width so mobile users can search too. */}
+      <form onSubmit={handleSubmit} className="relative w-full min-w-0 max-w-sm">
         <Search
           className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
           aria-hidden="true"

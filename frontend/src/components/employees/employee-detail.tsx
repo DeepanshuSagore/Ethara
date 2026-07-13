@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Armchair, DoorOpen, FolderKanban } from "lucide-react";
+import { ArrowLeft, Armchair, DoorOpen, FolderKanban, UserX } from "lucide-react";
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useToast } from "@/components/ui/use-toast";
 import { useRole } from "@/lib/demo-role";
 import { useMockData } from "@/lib/mock/store";
@@ -36,16 +37,19 @@ export function EmployeeDetail({ id }: { id: number }) {
   if (!employee) {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-          <h2 className="text-lg font-semibold">Employee not found</h2>
-          <p className="text-sm text-muted-foreground">
-            No employee with id {id} exists in the directory.
-          </p>
-          <Button asChild variant="outline">
-            <Link href="/employees">
-              <ArrowLeft /> Back to employees
-            </Link>
-          </Button>
+        <CardContent className="p-0">
+          <EmptyState
+            icon={UserX}
+            title="Employee not found"
+            description={`No employee with id ${id} exists in the directory.`}
+            action={
+              <Button asChild variant="outline">
+                <Link href="/employees">
+                  <ArrowLeft /> Back to employees
+                </Link>
+              </Button>
+            }
+          />
         </CardContent>
       </Card>
     );

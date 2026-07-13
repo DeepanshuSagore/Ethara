@@ -167,4 +167,17 @@
   ::selection {
     background: color-mix(in srgb, var(--primary) 25%, transparent);
   }
+
+  /* Collapse animations & transitions for users who opt out of motion
+     (skeleton pulse, dialog fade, chart bar transitions, bounce dots). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
 }

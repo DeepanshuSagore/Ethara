@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,13 +15,66 @@ import { EmployeeStatusBadge } from "@/components/employees/employee-status-badg
 import { useMockData } from "@/lib/mock/store";
 import type { Employee } from "@/types";
 
+export type EmployeeSortKey = "name" | "employee_code" | "department";
+
+export interface EmployeeSort {
+  key: EmployeeSortKey;
+  dir: "asc" | "desc";
+}
+
 interface EmployeeTableProps {
   employees: Employee[];
   /** Hide the project column on a project's own page. */
   showProject?: boolean;
+  /** Current sort — pass with onSortChange to make columns sortable. */
+  sort?: EmployeeSort | null;
+  onSortChange?: (key: EmployeeSortKey) => void;
 }
 
-export function EmployeeTable({ employees, showProject = true }: EmployeeTableProps) {
+function SortableHead({
+  label,
+  sortKey,
+  sort,
+  onSortChange,
+}: {
+  label: string;
+  sortKey: EmployeeSortKey;
+  sort: EmployeeSort | null | undefined;
+  onSortChange: (key: EmployeeSortKey) => void;
+}) {
+  const active = sort?.key === sortKey;
+  const Icon = active ? (sort.dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+
+  return (
+    <TableHead aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+      <button
+        type="button"
+        onClick={() => onSortChange(sortKey)}
+        className="-mx-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 uppercase tracking-wide transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {label}
+        <Icon
+          className={active ? "size-3.5 text-primary" : "size-3.5 opacity-50"}
+          aria-hidden="true"
+        />
+        <span className="sr-only">
+          {active
+            ? sort.dir === "asc"
+              ? "— sorted ascending, activate to sort descending"
+              : "— sorted descending, activate to sort ascending"
+            : "— activate to sort"}
+        </span>
+      </button>
+    </TableHead>
+  );
+}
+
+export function EmployeeTable({
+  employees,
+  showProject = true,
+  sort,
+  onSortChange,
+}: EmployeeTableProps) {
   const router = useRouter();
   const { projectsById, seatByEmployee } = useMockData();
 
@@ -28,9 +82,24 @@ export function EmployeeTable({ employees, showProject = true }: EmployeeTablePr
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Employee</TableHead>
-          <TableHead>Code</TableHead>
-          <TableHead>Department</TableHead>
+          {onSortChange ? (
+            <>
+              <SortableHead label="Employee" sortKey="name" sort={sort} onSortChange={onSortChange} />
+              <SortableHead label="Code" sortKey="employee_code" sort={sort} onSortChange={onSortChange} />
+              <SortableHead
+                label="Department"
+                sortKey="department"
+                sort={sort}
+                onSortChange={onSortChange}
+              />
+            </>
+          ) : (
+            <>
+              <TableHead>Employee</TableHead>
+              <TableHead>Code</TableHead>
+              <TableHead>Department</TableHead>
+            </>
+          )}
           <TableHead>Role</TableHead>
           {showProject && <TableHead>Project</TableHead>}
           <TableHead>Status</TableHead>
@@ -49,7 +118,7 @@ export function EmployeeTable({ employees, showProject = true }: EmployeeTablePr
               <TableCell>
                 <Link
                   href={`/employees/${employee.id}`}
-                  className="font-medium hover:underline"
+                  className="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {employee.name}
@@ -69,7 +138,7 @@ export function EmployeeTable({ employees, showProject = true }: EmployeeTablePr
               </TableCell>
               <TableCell className="text-metric">
                 {seat ? (
-                  <span>
+                  <span className="whitespace-nowrap">
                     {seat.seat_code}
                     <span className="text-xs text-muted-foreground"> · F{seat.floor}</span>
                   </span>

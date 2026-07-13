@@ -174,6 +174,58 @@ with all zones/bays and legend, new-joiner suggestions, assistant prompts); `/em
 confirmed to server-render only the matching row; seat-status palette validated for CVD separation
 and contrast in light and dark modes.
 
+### Phase 3 — Polish & States
+
+**Prompt:** "Phase 3 polish on top of the mock store (don't restructure it): route-level
+`loading.tsx` skeletons shaped like each screen; designed empty states on every list/table;
+`error.tsx` boundaries (route group + detail routes) with retry, consistent with the not-found
+cards; replace the employees MAX_ROWS=60 cap with reusable client-side pagination (~25/page,
+prev/next + 'Page X of Y' + count) shared with the project team table; sortable name/code/
+department columns; 'N filters active' chips with clear-all; mobile audit (tables, seat-map
+wrap, dialogs, chat, topbar); a11y pass (focus-visible, aria on icon buttons, keyboard seat map,
+toast announcements, prefers-reduced-motion); fix the `react-hooks/set-state-in-effect` error in
+`demo-role.tsx` keeping SSR-safe localStorage; verified per-route titles. Lint must end 100% clean."
+
+**AI output:** ~30 files. Shared state kit: `EmptyState`, `PaginationBar` (count line +
+prev/next, nav auto-hides at one page), skeleton blocks (`PageHeaderSkeleton`, `TableSkeleton`,
+`StatCardSkeleton`, `BarListSkeleton`, `DetailCardSkeleton`) and a client `ErrorState` card. Nine
+`loading.tsx` files shaped like their screens (employees/seats skeletons shared with the pages'
+`useSearchParams` Suspense fallbacks); three `error.tsx` boundaries wired to Next 16.2's new
+`unstable_retry` (falling back to `reset`), logging via `useEffect`. Employees screen rebuilt:
+filter → sort → clamp-page → slice pipeline, sortable headers with `aria-sort` + icon state,
+removable filter chips with clear-all, designed empty state with a clear-filters action; project
+team table paginated via the same bar. `demo-role.tsx` rewritten on `useSyncExternalStore`
+(server snapshot = default role, client snapshot reads localStorage, `storage` event syncs tabs).
+Dashboard page split into a server `page.tsx` (metadata) + `DashboardScreen` client component;
+detail routes gained `generateMetadata` resolving names from the deterministic dataset. Responsive:
+dialogs `w-[calc(100%-2rem)]` + `max-h` scroll, topbar search now visible on mobile, floor tabs
+scroll instead of clipping, reduced-motion CSS collapses animations and the chat auto-scroll.
+
+**Correct:** Lint (including the carried-over `demo-role.tsx` error) and typecheck clean first
+run; pagination/sorting/chips behaved correctly under browser automation on the first pass;
+`useSyncExternalStore` produced no hydration mismatch; bundled Next 16 docs (`node_modules/next/
+dist/docs`) correctly flagged `unstable_retry` as the 16.2 retry prop before writing the boundaries.
+
+**Incorrect:** First error-boundary test route was named `__boom` — underscore-prefixed folders
+are private (excluded from routing) in the App Router, so it 404'd; renamed to `boom-test`. That
+throwing test route then broke `next build` (a page that always throws can't be statically
+exported) — acceptable since it was verification-only and deleted after the browser test passed.
+A dev-mode "skeleton flashes on client navigation" check was flaky (dev router cache makes
+navigations instant), so loading verification pivoted to deterministic evidence instead.
+
+**Manual fixes:** None beyond the above (caught and fixed in-session).
+
+**Verification:** `npm run lint` ends with zero problems; `tsc --noEmit` clean; `next build`
+green (10 routes). Headless Chrome (playwright-core driving system Chrome against the dev server):
+30/31 checks passed — error boundary renders on a thrown route, Try-again re-invokes the segment,
+pagination next/prev updates rows/summary/disabled states, header clicks sort asc/desc with
+`aria-sort`, chips + clear-all restore the table, seat cells open/close the dialog via
+Enter/Escape, allocation fires a toast, all 8 screens show zero horizontal overflow at 375px,
+and the seat dialog fits a phone viewport (343px). Loading states proven at the router level
+(every route's RSC flight payload contains its rendered loading fallback) and at first paint
+(the production `next start` HTML for `/employees` serves the shaped skeleton); per-route
+`<title>`s curl-verified, including dynamic "Amit Sharma · Ethara" / "Mydreed · Ethara".
+
 ---
 
 ## 7. Testing

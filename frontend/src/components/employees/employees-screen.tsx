@@ -2,23 +2,30 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { UserPlus } from "lucide-react";
+import { SearchX, UserPlus } from "lucide-react";
 import { AddJoinerDialog } from "@/components/employees/add-joiner-dialog";
 import {
+  ActiveFilterChips,
+  countActiveFilters,
   DEFAULT_EMPLOYEE_FILTERS,
   EmployeeFilters,
   type EmployeeFilterState,
 } from "@/components/employees/employee-filters";
-import { EmployeeTable } from "@/components/employees/employee-table";
+import {
+  EmployeeTable,
+  type EmployeeSort,
+  type EmployeeSortKey,
+} from "@/components/employees/employee-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PaginationBar } from "@/components/ui/pagination";
 import { useRole } from "@/lib/demo-role";
 import { useMockData } from "@/lib/mock/store";
 import { formatNumber } from "@/lib/utils";
 
-// Phase 3 adds real pagination; for now cap the rendered rows.
-const MAX_ROWS = 60;
+const PAGE_SIZE = 25;
 
 export function EmployeesScreen() {
   const { employees } = useMockData();
@@ -30,6 +37,8 @@ export function EmployeesScreen() {
     ...DEFAULT_EMPLOYEE_FILTERS,
     search: initialQuery,
   });
+  const [sort, setSort] = React.useState<EmployeeSort | null>(null);
+  const [page, setPage] = React.useState(1);
 
   // Follow new global-search submissions from the Topbar (adjust-state-on-
   // prop-change pattern — setState during render, not in an effect).
@@ -37,9 +46,24 @@ export function EmployeesScreen() {
   if (prevQuery !== initialQuery) {
     setPrevQuery(initialQuery);
     setFilters((prev) => ({ ...prev, search: initialQuery }));
+    setPage(1);
   }
 
   const canManage = role === "Admin" || role === "HR";
+
+  const updateFilters = (next: EmployeeFilterState) => {
+    setFilters(next);
+    setPage(1);
+  };
+
+  const toggleSort = (key: EmployeeSortKey) => {
+    setSort((prev) =>
+      prev?.key === key
+        ? { key, dir: prev.dir === "asc" ? "desc" : "asc" }
+        : { key, dir: "asc" }
+    );
+    setPage(1);
+  };
 
   const filtered = React.useMemo(() => {
     const query = filters.search.trim().toLowerCase();
@@ -60,7 +84,26 @@ export function EmployeesScreen() {
     });
   }, [employees, filters]);
 
-  const visible = filtered.slice(0, MAX_ROWS);
+  const sorted = React.useMemo(() => {
+    if (!sort) return filtered;
+    const factor = sort.dir === "asc" ? 1 : -1;
+    return [...filtered].sort((a, b) => a[sort.key].localeCompare(b[sort.key]) * factor);
+  }, [filtered, sort]);
+
+  // Clamp rather than reset so releasing a filter never strands the user
+  // on a page that no longer exists.
+  const pageCount = Math.max(1, Math.ceil(sorted.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = sorted.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const rangeStart = (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, sorted.length);
+  const summary =
+    sorted.length === employees.length
+      ? `Showing ${rangeStart}–${rangeEnd} of ${formatNumber(employees.length)} employees`
+      : `Showing ${rangeStart}–${rangeEnd} of ${formatNumber(sorted.length)} matches (${formatNumber(employees.length)} employees total)`;
+
+  const activeFilterCount = countActiveFilters(filters);
 
   return (
     <>
@@ -79,18 +122,39 @@ export function EmployeesScreen() {
       />
 
       <div className="space-y-4">
-        <EmployeeFilters filters={filters} onChange={setFilters} />
+        <EmployeeFilters filters={filters} onChange={updateFilters} />
+        <ActiveFilterChips filters={filters} onChange={updateFilters} />
 
         <Card>
           <CardContent className="p-0">
-            <EmployeeTable employees={visible} />
-            <div className="border-t border-border px-4 py-3 text-sm text-muted-foreground">
-              {filtered.length === 0
-                ? "No employees match your search — try different filters."
-                : filtered.length > MAX_ROWS
-                  ? `Showing first ${MAX_ROWS} of ${formatNumber(filtered.length)} matches — refine your search to narrow down.`
-                  : `Showing ${formatNumber(filtered.length)} of ${formatNumber(employees.length)} employees.`}
-            </div>
+            {sorted.length === 0 ? (
+              <EmptyState
+                icon={SearchX}
+                title="No employees found"
+                description={
+                  activeFilterCount > 0
+                    ? "Nothing in the directory matches the current search and filters."
+                    : "The directory is empty — add an employee to get started."
+                }
+                action={
+                  activeFilterCount > 0 ? (
+                    <Button variant="outline" onClick={() => updateFilters(DEFAULT_EMPLOYEE_FILTERS)}>
+                      Clear all filters
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <>
+                <EmployeeTable employees={pageRows} sort={sort} onSortChange={toggleSort} />
+                <PaginationBar
+                  page={safePage}
+                  pageCount={pageCount}
+                  onPageChange={setPage}
+                  summary={summary}
+                />
+              </>
+            )}
           </CardContent>
         </Card>
       </div>

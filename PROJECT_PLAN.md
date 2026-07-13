@@ -267,7 +267,7 @@ Each phase ends with: working increment → **commit** → docs updated (README/
 - [x] Phase 0 — Foundation & Docs ✅ committed (`8b9d5eb`)
 - [x] Phase 1 — UI Design System ✅ theme tokens, 10 UI primitives, app shell + role switcher, full routing skeleton, light/dark
 - [x] Phase 2 — Core UI Screens ✅ typed mock layer (schema-mirroring types, seeded generator, client store with rule-enforcing actions), Dashboard with live aggregates + charts, Employees list/detail, Projects list/detail, interactive seat map + allocation dialog, new-joiner queue with proximity suggestions, assistant chat UI, global search wired
-- [ ] Phase 3 — Polish & States
+- [x] Phase 3 — Polish & States ✅ route-level loading skeletons shaped per screen, designed empty states everywhere, error boundaries with retry (Next 16.2 `unstable_retry`), reusable pagination (employees + project team) replacing the row cap, sortable columns + filter chips, mobile audit (dialogs, tabs, topbar search, seat-map wrap), a11y pass (aria-sort, keyboard seat map, toasts, reduced motion), per-route titles, lint 100% clean (demo-role rewritten on useSyncExternalStore)
 - [ ] Phase 4 — Backend Foundation + Schema
 - [ ] Phase 5 — Seed Data
 - [ ] Phase 6 — REST APIs

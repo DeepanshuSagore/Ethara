@@ -43,7 +43,8 @@ export function SeatMap() {
       />
 
       <Tabs defaultValue={String(initialFloor)}>
-        <TabsList>
+        {/* Five floor triggers overflow a phone viewport — scroll, don't clip. */}
+        <TabsList className="max-w-full justify-start overflow-x-auto">
           {FLOORS.map((floor) => (
             <TabsTrigger key={floor} value={String(floor)}>
               Floor {floor}

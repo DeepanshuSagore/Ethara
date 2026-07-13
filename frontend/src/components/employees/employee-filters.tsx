@@ -1,6 +1,7 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { Search, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -26,7 +27,16 @@ export const DEFAULT_EMPLOYEE_FILTERS: EmployeeFilterState = {
   status: "all",
 };
 
-const STATUS_LABELS: Record<EmployeeStatus, string> = {
+export function countActiveFilters(filters: EmployeeFilterState) {
+  return (
+    Number(filters.search.trim() !== "") +
+    Number(filters.department !== "all") +
+    Number(filters.projectId !== "all") +
+    Number(filters.status !== "all")
+  );
+}
+
+export const STATUS_LABELS: Record<EmployeeStatus, string> = {
   ACTIVE: "Active",
   ON_LEAVE: "On leave",
   EXITED: "Exited",
@@ -106,6 +116,74 @@ export function EmployeeFilters({ filters, onChange }: EmployeeFiltersProps) {
           ))}
         </SelectContent>
       </Select>
+    </div>
+  );
+}
+
+/**
+ * "N filters active" affordance: one removable chip per active filter plus a
+ * clear-all button. Renders nothing when every filter is at its default.
+ */
+export function ActiveFilterChips({ filters, onChange }: EmployeeFiltersProps) {
+  const { projectsById } = useMockData();
+
+  const chips: Array<{ key: string; label: string; clear: () => void }> = [];
+  if (filters.search.trim() !== "") {
+    chips.push({
+      key: "search",
+      label: `Search: “${filters.search.trim()}”`,
+      clear: () => onChange({ ...filters, search: "" }),
+    });
+  }
+  if (filters.department !== "all") {
+    chips.push({
+      key: "department",
+      label: `Department: ${filters.department}`,
+      clear: () => onChange({ ...filters, department: "all" }),
+    });
+  }
+  if (filters.projectId !== "all") {
+    chips.push({
+      key: "project",
+      label: `Project: ${projectsById.get(Number(filters.projectId))?.name ?? filters.projectId}`,
+      clear: () => onChange({ ...filters, projectId: "all" }),
+    });
+  }
+  if (filters.status !== "all") {
+    chips.push({
+      key: "status",
+      label: `Status: ${STATUS_LABELS[filters.status as EmployeeStatus] ?? filters.status}`,
+      clear: () => onChange({ ...filters, status: "all" }),
+    });
+  }
+
+  if (chips.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <span className="text-sm text-muted-foreground">
+        {chips.length} {chips.length === 1 ? "filter" : "filters"} active
+      </span>
+      {chips.map((chip) => (
+        <button
+          key={chip.key}
+          type="button"
+          onClick={chip.clear}
+          aria-label={`Remove filter — ${chip.label}`}
+          className="flex items-center gap-1.5 rounded-full border border-border bg-card py-1 pl-3 pr-2 text-xs font-medium shadow-soft transition-colors hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          {chip.label}
+          <X className="size-3 text-muted-foreground" aria-hidden="true" />
+        </button>
+      ))}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => onChange(DEFAULT_EMPLOYEE_FILTERS)}
+        className="text-muted-foreground"
+      >
+        Clear all
+      </Button>
     </div>
   );
 }

@@ -98,7 +98,11 @@ export function ChatPanel() {
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+    const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scrollRef.current?.scrollTo({
+      top: scrollRef.current.scrollHeight,
+      behavior: reduceMotion ? "auto" : "smooth",
+    });
   }, [messages, thinking]);
 
   const send = (text: string) => {

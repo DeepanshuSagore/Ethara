@@ -1,18 +1,24 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Armchair, MapPin, UserRound, Users } from "lucide-react";
+import { ArrowLeft, Armchair, FolderX, MapPin, UserRound, Users } from "lucide-react";
 import { StatCard } from "@/components/charts/stat-card";
 import { EmployeeTable } from "@/components/employees/employee-table";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PaginationBar } from "@/components/ui/pagination";
 import { DISPLAY_SCALE } from "@/lib/mock/data";
 import { useMockData } from "@/lib/mock/store";
 import { formatNumber } from "@/lib/utils";
 
+const PAGE_SIZE = 25;
+
 export function ProjectDetail({ id }: { id: number }) {
   const { projectsById, projectStats, employees } = useMockData();
+  const [page, setPage] = React.useState(1);
 
   const project = projectsById.get(id);
   const stats = projectStats.find((s) => s.project.id === id);
@@ -20,14 +26,19 @@ export function ProjectDetail({ id }: { id: number }) {
   if (!project || !stats) {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center gap-4 py-16 text-center">
-          <h2 className="text-lg font-semibold">Project not found</h2>
-          <p className="text-sm text-muted-foreground">No project with id {id} exists.</p>
-          <Button asChild variant="outline">
-            <Link href="/projects">
-              <ArrowLeft /> Back to projects
-            </Link>
-          </Button>
+        <CardContent className="p-0">
+          <EmptyState
+            icon={FolderX}
+            title="Project not found"
+            description={`No project with id ${id} exists.`}
+            action={
+              <Button asChild variant="outline">
+                <Link href="/projects">
+                  <ArrowLeft /> Back to projects
+                </Link>
+              </Button>
+            }
+          />
         </CardContent>
       </Card>
     );
@@ -37,6 +48,12 @@ export function ProjectDetail({ id }: { id: number }) {
     (e) => e.project_id === id && e.status !== "EXITED"
   );
   const pending = members.filter((m) => m.status === "PENDING_ALLOCATION").length;
+
+  const pageCount = Math.max(1, Math.ceil(members.length / PAGE_SIZE));
+  const safePage = Math.min(page, pageCount);
+  const pageRows = members.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const rangeStart = (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, members.length);
 
   return (
     <>
@@ -85,7 +102,23 @@ export function ProjectDetail({ id }: { id: number }) {
           <CardDescription>Everyone mapped to {project.name}, with their seats</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <EmployeeTable employees={members} showProject={false} />
+          {members.length === 0 ? (
+            <EmptyState
+              icon={Users}
+              title="No team members yet"
+              description={`Nobody is mapped to ${project.name} right now. New joiners appear here once assigned.`}
+            />
+          ) : (
+            <>
+              <EmployeeTable employees={pageRows} showProject={false} />
+              <PaginationBar
+                page={safePage}
+                pageCount={pageCount}
+                onPageChange={setPage}
+                summary={`Showing ${rangeStart}–${rangeEnd} of ${formatNumber(members.length)} team members`}
+              />
+            </>
+          )}
         </CardContent>
       </Card>
     </>

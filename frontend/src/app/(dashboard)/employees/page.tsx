@@ -1,21 +1,15 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
 import { EmployeesScreen } from "@/components/employees/employees-screen";
-import { Skeleton } from "@/components/ui/skeleton";
+import { EmployeesScreenSkeleton } from "@/components/employees/employees-skeleton";
 
 export const metadata: Metadata = { title: "Employees" };
 
 export default function EmployeesPage() {
   return (
-    // Suspense boundary is required around useSearchParams (topbar search query).
-    <Suspense
-      fallback={
-        <div className="space-y-4">
-          <Skeleton className="h-16 w-full" />
-          <Skeleton className="h-96 w-full" />
-        </div>
-      }
-    >
+    // Suspense boundary is required around useSearchParams (topbar search
+    // query); the fallback matches the route's loading.tsx shape.
+    <Suspense fallback={<EmployeesScreenSkeleton />}>
       <EmployeesScreen />
     </Suspense>
   );
