@@ -31,3 +31,20 @@ Frontend issues from Phases 1–3 are logged inline in [AI_PROMPTS.md](./AI_PROM
   [backend/app/core/database.py](backend/app/core/database.py), and the same pragma in the test
   fixture engine. PostgreSQL enforces FKs natively, so dev now matches prod.
 - **Verification:** `test_fk_integrity_enforced` raises `IntegrityError` as expected.
+
+---
+
+## Phase 5 — Seed Data
+
+No blocking issues — the seeder ran clean on the first attempt (the Python 3.14 dependency work
+was already absorbed in Phase 4). Two design notes worth recording:
+
+- **Determinism required banning `now()`:** the models' `created_at`/`updated_at` columns
+  default to `utcnow()`, which would make every rerun differ. The seeder sets **all** date
+  fields explicitly as offsets from a fixed base date (2026-07-13 UTC, same as the frontend
+  mock), so two consecutive runs produce byte-identical `sqlite3 .dump` output (verified by
+  SHA-256 comparison).
+- **Status math is closed-form:** OCCUPIED must equal the ACTIVE-allocation count, so the seat
+  statuses are derived (5,600 − 4,940 occupied − 100 reserved − 50 maintenance = 510 available ≥
+  500) rather than sampled — every §5b minimum holds by construction, and the DB's partial
+  unique indexes would reject any drift anyway.

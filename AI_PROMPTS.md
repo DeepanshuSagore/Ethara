@@ -87,6 +87,49 @@ uvicorn boots with all models imported — `/`, `/health`, `/docs`, `/openapi.js
 
 ---
 
+## 2b. Seed Data Generation
+
+**Prompt:** _(Phase 5)_ "Build the Faker seed module (`python -m app.seed.run`): deterministic
+(fixed seed, fixed base date) and idempotent (wipe + repopulate the four tables in one
+transaction, bulk inserts). Exact §5b targets: 11 named projects all ACTIVE; 5 floors × 2 zones
+= 10 zones, ~5,600 seats with `seat_code = {zone}{bay}-{seat_number}` and bay derived from
+seat_number like the frontend mock; 5,000 employees with unique @ethara.ai emails, employee #1 =
+Amit Sharma / amit@ethara.ai, the mock's department→roles mapping, `ETH-NNNN` codes; ≥50
+PENDING_ALLOCATION / a few EXITED (no seats) / a few ON_LEAVE (keep seats); seat statuses ≥500
+AVAILABLE, ≥100 RESERVED, ~50 MAINTENANCE, OCCUPIED = exactly the ACTIVE-allocation seats; teams
+clustered around per-project home zones (mirrors the mock so rule 5's proximity suggestions make
+sense). Plus a verification step printing a summary and asserting every target + invariant."
+
+**AI output:** `app/seed/data.py` (vocabularies + targets mirroring
+`frontend/src/lib/mock/data.ts`, scaled ×20: 80 bays × 7 seats per zone = 5,600 seats;
+composition 4,915 ACTIVE / 25 ON_LEAVE / 10 EXITED / 50 PENDING → 4,940 allocations, leaving
+510 AVAILABLE / 100 RESERVED / 50 MAINTENANCE), `app/seed/run.py` (pure in-memory row builder
+from `random.Random(20260713)` + seeded Faker with explicit ids and fixed-base-date offsets —
+no `now()` drift — then FK-ordered `DELETE` + bulk `INSERT` in one transaction), and
+`app/seed/verify.py` (summary table + 21 hard checks: every §5b minimum, exact project names,
+Amit row, unique emails, no double-ACTIVE per employee/seat, OCCUPIED == ACTIVE allocations and
+pointing at the same seats, no PENDING/EXITED holding a seat, allocation↔employee project match,
+seat_code recomputed in SQL; exits non-zero on failure and runs standalone).
+
+**Correct:** Worked first try — fresh DB (`alembic downgrade base && upgrade head`) → seed in
+~0.5s → 21/21 checks pass; per-project clustering exact (e.g. all ~450 of project 1's seats in
+floor 1 zone A, project 6's in 3B, matching the mock's home-zone walk).
+
+**Incorrect:** Nothing material this phase (the cp314 dependency work was done in Phase 4). One
+in-session cleanup: the first draft of verify.py's seat_code SQL check used an inline
+`__import__("sqlalchemy")` hack instead of importing `cast`/`String` properly.
+
+**Manual fixes:** None beyond the above.
+
+**Verification:** Ran the seeder twice and compared `sqlite3 .dump` SHA-256 hashes —
+byte-identical, proving idempotency + determinism. Independently re-verified with the sqlite3
+CLI (not the script): entity counts (11 / 5,600 / 5,000 / 4,940), seat- and employee-status
+breakdowns, `COUNT(DISTINCT email) = 5000`, zero employees/seats with two ACTIVE allocations,
+occupied-count == active-allocation-count, Amit row, 5 floors / 10 zones, seat_code spot-checks
+across bay boundaries (`A1-7` → `A2-8`, `A80-560`). Existing pytest schema suite still 10/10.
+
+---
+
 ## 3. Backend APIs
 
 **Prompt:** _(Phase 6)_ "Implement FastAPI routers at these exact paths (…/employees, /seats/allocate,
