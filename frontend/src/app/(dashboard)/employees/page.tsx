@@ -1,22 +1,22 @@
 import type { Metadata } from "next";
-import { Users } from "lucide-react";
-import { ComingSoon } from "@/components/layout/coming-soon";
-import { PageHeader } from "@/components/layout/page-header";
+import { Suspense } from "react";
+import { EmployeesScreen } from "@/components/employees/employees-screen";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export const metadata: Metadata = { title: "Employees" };
 
 export default function EmployeesPage() {
   return (
-    <>
-      <PageHeader
-        title="Employees"
-        description="Directory of all employees with search, filters and seat status."
-      />
-      <ComingSoon
-        icon={Users}
-        title="Employee directory"
-        description="Searchable list of ~5,000 employees with department, role, project and seat allocation — arriving in Phase 2."
-      />
-    </>
+    // Suspense boundary is required around useSearchParams (topbar search query).
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-96 w-full" />
+        </div>
+      }
+    >
+      <EmployeesScreen />
+    </Suspense>
   );
 }

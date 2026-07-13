@@ -128,6 +128,52 @@ generated types in `.next` that failed `tsc` until a clean rebuild.
 every route curl-checked for 200 + expected content (404 page verified too); compiled CSS inspected
 to confirm brand tokens, `.dark` block, and `text-metric`/`tabular-nums` utilities were emitted.
 
+### Phase 2 — Core UI Screens (typed mock data)
+
+**Prompt:** "Build every Phase 2 screen on typed mock data mirroring the DB schema: a seeded
+deterministic dataset (~250 employees / 280 seats, ×20 display scale for the brief's ~5,000/~5,600
+headline metrics), a client store with allocate/release/add-joiner actions enforcing the business
+rules; Dashboard (stat cards + project-wise allocation and floor-wise occupancy bars + utilization
+donut), Employees (search/filter table + `/employees/[id]` detail), Projects (cards +
+`/projects/[id]` with team table), Seats (floor tabs → zone cards → bay rows of clickable cells,
+legend, allocation dialog), New Joiners (queue with proximity-based seat suggestions + add-joiner
+dialog), Assistant (chat UI with mock keyword replies), and wire the Topbar global search to
+`/employees?query=`. Role-aware: Admin/HR see allocate/release/add actions, others read-only."
+
+**AI output:** ~25 files: `src/types/` (schema-mirroring `Employee`/`Project`/`Seat`/
+`SeatAllocation` in snake_case so the Phase 7 API swap is mechanical); `src/lib/mock/` — mulberry32
+seeded PRNG, deterministic generator (5 floors × 2 zones × 4 bays × 7 seats = 280 seats; teams
+clustered around per-project home zones; Amit Sharma / amit@ethara.ai seeded as employee #1 to match
+the brief's AI example), and a `MockDataProvider` context store with derived maps, dashboard
+metrics, seat suggestions (team-zone → same-floor → alternate-zone) and rule-enforcing
+allocate/release/addJoiner actions; chart primitives (`StatCard`, `BarList`, `DonutStat`);
+screen components under `components/{employees,projects,seats,assistant}/`; all 7 screens wired,
+detail routes awaiting the Next 16 `params` Promise; seat-status palette validated with a
+colorblind-safety script (statuses also carry non-color encoding: icons on reserved/maintenance
+cells, filled-vs-outline cells, labeled legend).
+
+**Correct:** Typecheck and production build passed first try; deterministic module-scope dataset
+kept SSR and hydration in sync; business rules (one active seat per employee, reserved/maintenance
+not allocatable, release → available, duplicate email rejected, metrics recompute on every action)
+hold in the store; role switcher visibly gates actions on Employees/Seats/New Joiners; suggested
+seats follow project proximity with alternate-zone fallback.
+
+**Incorrect:** First draft synced the Topbar search into filter state with `setState` inside a
+`useEffect`, which the repo's React-hooks lint (react-hooks/set-state-in-effect) rejects — replaced
+with the adjust-state-during-render pattern. An unused import slipped into the store. A curl check
+for "Zone A" on the seats page initially looked like a rendering bug but was React's SSR comment
+markers (`Zone <!-- -->A`) — verified content was actually present.
+
+**Manual fixes:** None beyond the above (caught and fixed in-session). Pre-existing Phase 1 lint
+error in `demo-role.tsx` left for Phase 3 polish.
+
+**Verification:** `tsc --noEmit` clean; `next build` green (10 routes incl. two dynamic detail
+routes); every route curl-checked on the dev server for 200 + expected mock content (dashboard
+aggregates 5,000/5,600, employee detail with seat + project cards, project team table, seat grid
+with all zones/bays and legend, new-joiner suggestions, assistant prompts); `/employees?query=amit`
+confirmed to server-render only the matching row; seat-status palette validated for CVD separation
+and contrast in light and dark modes.
+
 ---
 
 ## 7. Testing

@@ -266,7 +266,7 @@ Each phase ends with: working increment → **commit** → docs updated (README/
 ## 10. Current Status
 - [x] Phase 0 — Foundation & Docs ✅ committed (`8b9d5eb`)
 - [x] Phase 1 — UI Design System ✅ theme tokens, 10 UI primitives, app shell + role switcher, full routing skeleton, light/dark
-- [ ] Phase 2 — Core UI Screens
+- [x] Phase 2 — Core UI Screens ✅ typed mock layer (schema-mirroring types, seeded generator, client store with rule-enforcing actions), Dashboard with live aggregates + charts, Employees list/detail, Projects list/detail, interactive seat map + allocation dialog, new-joiner queue with proximity suggestions, assistant chat UI, global search wired
 - [ ] Phase 3 — Polish & States
 - [ ] Phase 4 — Backend Foundation + Schema
 - [ ] Phase 5 — Seed Data
