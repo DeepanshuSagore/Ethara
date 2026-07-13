@@ -9,6 +9,22 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
+/** Building layout the backend seeds: 5 floors × zones A/B (PROJECT_PLAN §5b). */
+export const FLOORS = [1, 2, 3, 4, 5] as const;
+export const ZONES = ["A", "B"] as const;
+
+/** Departments the seeder draws from — options for filters and the joiner form. */
+export const DEPARTMENTS = [
+  "Data & AI",
+  "Design",
+  "DevOps",
+  "Engineering",
+  "Operations",
+  "People",
+  "Product",
+  "Quality",
+] as const;
+
 export const ROLES = ["Admin", "HR", "Project", "Employee"] as const;
 export type Role = (typeof ROLES)[number];
 

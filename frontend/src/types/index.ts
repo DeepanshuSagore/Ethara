@@ -74,3 +74,38 @@ export interface SeatSuggestion {
   seat: Seat;
   reason: "team-zone" | "same-floor" | "alternate-zone";
 }
+
+/** GET /dashboard/summary — live headline metrics (business rule 8). */
+export interface DashboardSummary {
+  /** Non-EXITED employees. */
+  total_employees: number;
+  total_seats: number;
+  occupied: number;
+  available: number;
+  reserved: number;
+  maintenance: number;
+  pending_joiners: number;
+  utilization_pct: number;
+}
+
+/** GET /dashboard/project-utilization — one row per project. */
+export interface ProjectUtilization {
+  project: Project;
+  /** Members not EXITED. */
+  headcount: number;
+  /** Members currently holding an ACTIVE seat allocation. */
+  seated: number;
+  /** Zone the team clusters around, e.g. "1A". */
+  home_zone: string;
+}
+
+/** GET /dashboard/floor-utilization — one row per floor. */
+export interface FloorUtilization {
+  floor: number;
+  total: number;
+  occupied: number;
+  available: number;
+  reserved: number;
+  maintenance: number;
+  occupancy_pct: number;
+}

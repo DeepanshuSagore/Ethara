@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -18,10 +19,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
 import { SeatStatusBadge } from "@/components/seats/seat-status-badge";
+import { errorMessage } from "@/lib/api/client";
+import { getSeat } from "@/lib/api/seats";
+import {
+  useAllocateSeat,
+  useEmployee,
+  usePendingJoiners,
+  useProjects,
+  useReleaseSeat,
+  useSeatIndex,
+} from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
-import { useMockData } from "@/lib/mock/store";
 import { formatDate } from "@/lib/utils";
 
 interface SeatDialogProps {
@@ -30,50 +41,105 @@ interface SeatDialogProps {
 }
 
 export function SeatDialog({ seatId, onOpenChange }: SeatDialogProps) {
-  const { seatsById, occupantBySeat, projectsById, pendingJoiners, allocateSeat, releaseSeat } =
-    useMockData();
   const { role } = useRole();
   const { toast } = useToast();
   const [selectedJoiner, setSelectedJoiner] = React.useState("");
 
-  // Look the seat up live so the dialog reflects allocate/release immediately.
-  const seat = seatId !== null ? seatsById.get(seatId) : undefined;
+  // Fetch the seat itself so the open dialog reflects allocate/release
+  // immediately (mutations invalidate this query along with everything else).
+  const seatQuery = useQuery({
+    queryKey: ["seats", "detail", seatId],
+    queryFn: ({ signal }) => getSeat(seatId as number, signal),
+    enabled: seatId !== null,
+  });
+  const seat = seatQuery.data;
+
+  const { occupantBySeat } = useSeatIndex();
   const occupant = seat ? occupantBySeat.get(seat.id) : undefined;
+  const occupantQuery = useEmployee(occupant?.employeeId ?? 0);
+
+  const pendingJoinersQuery = usePendingJoiners();
+  const { data: projects } = useProjects();
+  const projectsById = new Map((projects ?? []).map((p) => [p.id, p]));
+  const pendingJoiners = pendingJoinersQuery.data ?? [];
+
+  const allocate = useAllocateSeat();
+  const release = useReleaseSeat();
   const canManage = role === "Admin" || role === "HR";
 
   const handleAllocate = () => {
     if (!seat || !selectedJoiner) return;
     const joiner = pendingJoiners.find((j) => j.id === Number(selectedJoiner));
-    const result = allocateSeat(Number(selectedJoiner), seat.id);
-    toast(
-      result.ok
-        ? {
+    allocate.mutate(
+      { employeeId: Number(selectedJoiner), seatId: seat.id },
+      {
+        onSuccess: () => {
+          toast({
             title: "Seat allocated",
             description: `${joiner?.name ?? "Employee"} is now seated at ${seat.seat_code} on Floor ${seat.floor}.`,
-          }
-        : { title: "Allocation failed", description: result.error, variant: "destructive" }
+          });
+          setSelectedJoiner("");
+        },
+        onError: (error) =>
+          // 409 details name the violated rule (already seated / not available).
+          toast({
+            title: "Allocation failed",
+            description: errorMessage(error),
+            variant: "destructive",
+          }),
+      }
     );
-    if (result.ok) setSelectedJoiner("");
   };
 
   const handleRelease = () => {
     if (!seat || !occupant) return;
-    const name = occupant.employee.name;
-    const result = releaseSeat(seat.id);
-    toast(
-      result.ok
-        ? {
+    const name = occupantQuery.data?.name ?? "the occupant";
+    release.mutate(
+      { seatId: seat.id },
+      {
+        onSuccess: () =>
+          toast({
             title: "Seat released",
             description: `${seat.seat_code} is available again — ${name} no longer holds it.`,
-          }
-        : { title: "Release failed", description: result.error, variant: "destructive" }
+          }),
+        onError: (error) =>
+          toast({
+            title: "Release failed",
+            description: errorMessage(error),
+            variant: "destructive",
+          }),
+      }
     );
   };
 
   return (
     <Dialog open={seatId !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        {seat && (
+        {!seat ? (
+          <>
+            <DialogHeader>
+              <DialogTitle>
+                {seatQuery.isError ? "Seat unavailable" : "Loading seat…"}
+              </DialogTitle>
+              <DialogDescription>
+                {seatQuery.isError
+                  ? errorMessage(seatQuery.error)
+                  : "Fetching the latest seat details."}
+              </DialogDescription>
+            </DialogHeader>
+            {!seatQuery.isError && (
+              <div className="space-y-3" aria-busy="true">
+                <Skeleton className="h-16 w-full rounded-xl" />
+                <Skeleton className="h-9 w-full" />
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>
+                Close
+              </Button>
+            </DialogFooter>
+          </>
+        ) : (
           <>
             <DialogHeader>
               <div className="flex items-center gap-3">
@@ -90,17 +156,23 @@ export function SeatDialog({ seatId, onOpenChange }: SeatDialogProps) {
                 <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Allocated to
                 </p>
-                <Link
-                  href={`/employees/${occupant.employee.id}`}
-                  className="mt-1 block font-semibold hover:underline"
-                  onClick={() => onOpenChange(false)}
-                >
-                  {occupant.employee.name}
-                </Link>
-                <p className="text-sm text-muted-foreground">
-                  {occupant.employee.employee_code} ·{" "}
-                  {projectsById.get(occupant.allocation.project_id)?.name}
-                </p>
+                {occupantQuery.data ? (
+                  <>
+                    <Link
+                      href={`/employees/${occupantQuery.data.id}`}
+                      className="mt-1 block font-semibold hover:underline"
+                      onClick={() => onOpenChange(false)}
+                    >
+                      {occupantQuery.data.name}
+                    </Link>
+                    <p className="text-sm text-muted-foreground">
+                      {occupantQuery.data.employee_code} ·{" "}
+                      {projectsById.get(occupant.allocation.project_id)?.name}
+                    </p>
+                  </>
+                ) : (
+                  <Skeleton className="mt-1 h-5 w-40" />
+                )}
                 <p className="mt-1 text-xs text-muted-foreground">
                   Allocated {formatDate(occupant.allocation.allocation_date)}
                 </p>
@@ -124,7 +196,9 @@ export function SeatDialog({ seatId, onOpenChange }: SeatDialogProps) {
                     </Select>
                   ) : (
                     <p className="text-sm text-muted-foreground">
-                      No new joiners are waiting for a seat.
+                      {pendingJoinersQuery.isPending
+                        ? "Loading the pending queue…"
+                        : "No new joiners are waiting for a seat."}
                     </p>
                   )}
                 </div>
@@ -137,7 +211,9 @@ export function SeatDialog({ seatId, onOpenChange }: SeatDialogProps) {
               <p className="text-sm text-muted-foreground">
                 {seat.status === "RESERVED"
                   ? "Reserved seats cannot be allocated until their status is changed."
-                  : "This seat is under maintenance and cannot be allocated."}
+                  : seat.status === "MAINTENANCE"
+                    ? "This seat is under maintenance and cannot be allocated."
+                    : "Refreshing the occupant register…"}
               </p>
             )}
 
@@ -146,13 +222,20 @@ export function SeatDialog({ seatId, onOpenChange }: SeatDialogProps) {
                 Close
               </Button>
               {canManage && occupant && (
-                <Button variant="destructive" onClick={handleRelease}>
-                  Release seat
+                <Button
+                  variant="destructive"
+                  onClick={handleRelease}
+                  disabled={release.isPending}
+                >
+                  {release.isPending ? "Releasing…" : "Release seat"}
                 </Button>
               )}
               {canManage && !occupant && seat.status === "AVAILABLE" && (
-                <Button onClick={handleAllocate} disabled={!selectedJoiner}>
-                  Allocate seat
+                <Button
+                  onClick={handleAllocate}
+                  disabled={!selectedJoiner || allocate.isPending}
+                >
+                  {allocate.isPending ? "Allocating…" : "Allocate seat"}
                 </Button>
               )}
             </DialogFooter>

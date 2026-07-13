@@ -1,14 +1,42 @@
 "use client";
 
 import { FolderKanban } from "lucide-react";
+import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProjectCard } from "@/components/projects/project-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { useMockData } from "@/lib/mock/store";
+import ProjectsLoading from "@/app/(dashboard)/projects/loading";
+import { errorMessage } from "@/lib/api/client";
+import { useProjectUtilization } from "@/lib/api/hooks";
 
 export function ProjectsScreen() {
-  const { projectStats } = useMockData();
+  // /dashboard/project-utilization bundles each project with live
+  // headcount/seated/home-zone stats — exactly what the cards show.
+  const utilizationQuery = useProjectUtilization();
+
+  if (utilizationQuery.isError) {
+    return (
+      <>
+        <PageHeader
+          title="Projects"
+          description="All active projects with headcount, allocated seats and team location."
+        />
+        <ErrorState
+          title="Could not load projects"
+          description="The Ethara API did not respond. Check that the backend is running, then try again."
+          detail={errorMessage(utilizationQuery.error)}
+          onRetry={() => utilizationQuery.refetch()}
+        />
+      </>
+    );
+  }
+
+  if (utilizationQuery.isPending) {
+    return <ProjectsLoading />;
+  }
+
+  const projectStats = utilizationQuery.data;
 
   return (
     <>

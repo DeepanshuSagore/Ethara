@@ -1,7 +1,12 @@
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PageHeaderSkeleton } from "@/components/layout/skeletons";
-import { BAYS_PER_ZONE, FLOORS, SEATS_PER_BAY, ZONES } from "@/lib/mock/data";
+import { FLOORS, ZONES } from "@/lib/constants";
+
+// Placeholder rows only — the real floor renders 80 bays × 7 seats per zone
+// once /seats?floor= resolves, but a viewport-height sketch reads better.
+const SKELETON_BAYS = 8;
+const SKELETON_SEATS_PER_BAY = 7;
 
 /**
  * Loading shape for the seat map — floor tabs, legend, and two zone cards of
@@ -39,11 +44,11 @@ export function SeatMapSkeleton() {
               <Skeleton className="h-4 w-40" />
             </CardHeader>
             <CardContent className="space-y-3">
-              {Array.from({ length: BAYS_PER_ZONE }, (_, bay) => (
+              {Array.from({ length: SKELETON_BAYS }, (_, bay) => (
                 <div key={bay} className="flex items-center gap-3">
                   <Skeleton className="h-3 w-12 shrink-0" />
                   <div className="flex flex-wrap gap-1.5">
-                    {Array.from({ length: SEATS_PER_BAY }, (_, seat) => (
+                    {Array.from({ length: SKELETON_SEATS_PER_BAY }, (_, seat) => (
                       <Skeleton key={seat} className="size-9 rounded-lg" />
                     ))}
                   </div>

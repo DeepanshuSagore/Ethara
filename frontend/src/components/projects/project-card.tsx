@@ -4,12 +4,11 @@ import Link from "next/link";
 import { MapPin, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DISPLAY_SCALE } from "@/lib/mock/data";
-import type { ProjectStats } from "@/lib/mock/store";
 import { formatNumber } from "@/lib/utils";
+import type { ProjectUtilization } from "@/types";
 
-export function ProjectCard({ stats }: { stats: ProjectStats }) {
-  const { project, headcount, seated, homeZone } = stats;
+export function ProjectCard({ stats }: { stats: ProjectUtilization }) {
+  const { project, headcount, seated, home_zone: homeZone } = stats;
   const seatedPct = headcount === 0 ? 0 : Math.round((seated / headcount) * 100);
 
   return (
@@ -39,15 +38,11 @@ export function ProjectCard({ stats }: { stats: ProjectStats }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <p className="text-metric text-2xl font-semibold">
-                {formatNumber(headcount * DISPLAY_SCALE)}
-              </p>
+              <p className="text-metric text-2xl font-semibold">{formatNumber(headcount)}</p>
               <p className="text-xs text-muted-foreground">people</p>
             </div>
             <div>
-              <p className="text-metric text-2xl font-semibold">
-                {formatNumber(seated * DISPLAY_SCALE)}
-              </p>
+              <p className="text-metric text-2xl font-semibold">{formatNumber(seated)}</p>
               <p className="text-xs text-muted-foreground">seats allocated</p>
             </div>
           </div>

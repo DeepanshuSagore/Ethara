@@ -7,7 +7,14 @@ import { cn } from "@/lib/utils";
 interface PaginationBarProps {
   /** 1-based current page (already clamped by the caller). */
   page: number;
-  pageCount: number;
+  /** Total pages — pass when the full result set is known client-side. */
+  pageCount?: number;
+  /**
+   * Server-side (limit/offset) mode: whether another page exists. The API's
+   * list endpoints return no total count, so pass hasNext instead of
+   * pageCount and the label degrades from "Page N of M" to "Page N".
+   */
+  hasNext?: boolean;
   onPageChange: (page: number) => void;
   /** Result-count line, e.g. "Showing 1–25 of 244 employees". */
   summary: string;
@@ -21,10 +28,14 @@ interface PaginationBarProps {
 export function PaginationBar({
   page,
   pageCount,
+  hasNext,
   onPageChange,
   summary,
   className,
 }: PaginationBarProps) {
+  const showNav = pageCount !== undefined ? pageCount > 1 : page > 1 || hasNext === true;
+  const nextDisabled = pageCount !== undefined ? page >= pageCount : !hasNext;
+
   return (
     <div
       className={cn(
@@ -36,7 +47,7 @@ export function PaginationBar({
         {summary}
       </p>
 
-      {pageCount > 1 && (
+      {showNav && (
         <div className="flex items-center gap-3">
           <Button
             variant="outline"
@@ -48,13 +59,13 @@ export function PaginationBar({
             <ChevronLeft /> Prev
           </Button>
           <span className="text-metric whitespace-nowrap text-sm text-muted-foreground">
-            Page {page} of {pageCount}
+            {pageCount !== undefined ? `Page ${page} of ${pageCount}` : `Page ${page}`}
           </span>
           <Button
             variant="outline"
             size="sm"
             onClick={() => onPageChange(page + 1)}
-            disabled={page >= pageCount}
+            disabled={nextDisabled}
             aria-label="Next page"
           >
             Next <ChevronRight />

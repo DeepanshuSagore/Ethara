@@ -10,7 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useMockData } from "@/lib/mock/store";
+import { useProjects } from "@/lib/api/hooks";
+import { DEPARTMENTS } from "@/lib/constants";
 import { EMPLOYEE_STATUSES, type EmployeeStatus } from "@/types";
 
 export interface EmployeeFilterState {
@@ -49,8 +50,7 @@ interface EmployeeFiltersProps {
 }
 
 export function EmployeeFilters({ filters, onChange }: EmployeeFiltersProps) {
-  const { projects, employees } = useMockData();
-  const departments = [...new Set(employees.map((e) => e.department))].sort();
+  const { data: projects } = useProjects();
 
   return (
     <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,180px))]">
@@ -78,7 +78,7 @@ export function EmployeeFilters({ filters, onChange }: EmployeeFiltersProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All departments</SelectItem>
-          {departments.map((dept) => (
+          {DEPARTMENTS.map((dept) => (
             <SelectItem key={dept} value={dept}>
               {dept}
             </SelectItem>
@@ -95,7 +95,7 @@ export function EmployeeFilters({ filters, onChange }: EmployeeFiltersProps) {
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All projects</SelectItem>
-          {projects.map((project) => (
+          {(projects ?? []).map((project) => (
             <SelectItem key={project.id} value={String(project.id)}>
               {project.name}
             </SelectItem>
@@ -125,7 +125,8 @@ export function EmployeeFilters({ filters, onChange }: EmployeeFiltersProps) {
  * clear-all button. Renders nothing when every filter is at its default.
  */
 export function ActiveFilterChips({ filters, onChange }: EmployeeFiltersProps) {
-  const { projectsById } = useMockData();
+  const { data: projects } = useProjects();
+  const projectsById = new Map((projects ?? []).map((p) => [p.id, p]));
 
   const chips: Array<{ key: string; label: string; clear: () => void }> = [];
   if (filters.search.trim() !== "") {

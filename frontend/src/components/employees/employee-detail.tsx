@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Armchair, DoorOpen, FolderKanban, UserX } from "lucide-react";
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
+import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,9 +14,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/use-toast";
+import EmployeeDetailLoading from "@/app/(dashboard)/employees/[id]/loading";
+import { ApiError, errorMessage } from "@/lib/api/client";
+import { useEmployee, useProject, useReleaseSeat, useSeatIndex } from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
-import { useMockData } from "@/lib/mock/store";
 import { formatDate, initials } from "@/lib/utils";
 
 function Field({ label, value }: { label: string; value: React.ReactNode }) {
@@ -28,47 +32,76 @@ function Field({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export function EmployeeDetail({ id }: { id: number }) {
-  const { employeesById, projectsById, seatByEmployee, releaseSeat } = useMockData();
+  const employeeQuery = useEmployee(id);
+  const employee = employeeQuery.data;
+  const projectQuery = useProject(employee?.project_id ?? 0);
+  const { seatByEmployee, isLoading: seatIndexLoading } = useSeatIndex();
+  const releaseSeatMutation = useReleaseSeat();
   const { role } = useRole();
   const { toast } = useToast();
 
-  const employee = employeesById.get(id);
-
-  if (!employee) {
+  const invalidId = !Number.isInteger(id) || id <= 0;
+  if (invalidId || employeeQuery.isError) {
+    if (
+      invalidId ||
+      (employeeQuery.error instanceof ApiError && employeeQuery.error.status === 404)
+    ) {
+      return (
+        <Card>
+          <CardContent className="p-0">
+            <EmptyState
+              icon={UserX}
+              title="Employee not found"
+              description={`No employee with id ${id} exists in the directory.`}
+              action={
+                <Button asChild variant="outline">
+                  <Link href="/employees">
+                    <ArrowLeft /> Back to employees
+                  </Link>
+                </Button>
+              }
+            />
+          </CardContent>
+        </Card>
+      );
+    }
     return (
-      <Card>
-        <CardContent className="p-0">
-          <EmptyState
-            icon={UserX}
-            title="Employee not found"
-            description={`No employee with id ${id} exists in the directory.`}
-            action={
-              <Button asChild variant="outline">
-                <Link href="/employees">
-                  <ArrowLeft /> Back to employees
-                </Link>
-              </Button>
-            }
-          />
-        </CardContent>
-      </Card>
+      <ErrorState
+        title="Could not load this employee"
+        description="The Ethara API did not respond. Check that the backend is running, then try again."
+        detail={errorMessage(employeeQuery.error)}
+        onRetry={() => employeeQuery.refetch()}
+        backHref="/employees"
+        backLabel="Back to employees"
+      />
     );
   }
 
-  const project = projectsById.get(employee.project_id);
+  if (!employee) {
+    return <EmployeeDetailLoading />;
+  }
+
+  const project = projectQuery.data;
   const seat = seatByEmployee.get(employee.id);
   const canManage = role === "Admin" || role === "HR";
 
   const handleRelease = () => {
     if (!seat) return;
-    const result = releaseSeat(seat.id);
-    toast(
-      result.ok
-        ? {
+    releaseSeatMutation.mutate(
+      { seatId: seat.id },
+      {
+        onSuccess: () =>
+          toast({
             title: "Seat released",
             description: `Seat ${seat.seat_code} on Floor ${seat.floor} is available again.`,
-          }
-        : { title: "Could not release seat", description: result.error, variant: "destructive" }
+          }),
+        onError: (error) =>
+          toast({
+            title: "Could not release seat",
+            description: errorMessage(error),
+            variant: "destructive",
+          }),
+      }
     );
   };
 
@@ -85,8 +118,13 @@ export function EmployeeDetail({ id }: { id: number }) {
               </Link>
             </Button>
             {canManage && seat && (
-              <Button variant="destructive" size="sm" onClick={handleRelease}>
-                <DoorOpen /> Release seat
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={handleRelease}
+                disabled={releaseSeatMutation.isPending}
+              >
+                <DoorOpen /> {releaseSeatMutation.isPending ? "Releasing…" : "Release seat"}
               </Button>
             )}
             {canManage && employee.status === "PENDING_ALLOCATION" && (
@@ -130,7 +168,11 @@ export function EmployeeDetail({ id }: { id: number }) {
               <Armchair className="size-4 text-primary" /> Seat allocation
             </CardTitle>
             <CardDescription>
-              {seat ? "Current active allocation" : "No active seat allocation"}
+              {seat
+                ? "Current active allocation"
+                : seatIndexLoading
+                  ? "Checking the allocation register…"
+                  : "No active seat allocation"}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -146,6 +188,12 @@ export function EmployeeDetail({ id }: { id: number }) {
                   <Link href={`/seats?floor=${seat.floor}`}>View on seat map</Link>
                 </Button>
               </>
+            ) : seatIndexLoading ? (
+              <div className="space-y-3">
+                <Skeleton className="h-9 w-24" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-2/3" />
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 {employee.status === "PENDING_ALLOCATION"
@@ -180,6 +228,12 @@ export function EmployeeDetail({ id }: { id: number }) {
                   <Field label="Status" value={project.status === "ACTIVE" ? "Active" : project.status} />
                 </dl>
               </>
+            ) : projectQuery.isPending ? (
+              <div className="space-y-3">
+                <Skeleton className="h-6 w-28" />
+                <Skeleton className="h-4 w-full" />
+                <Skeleton className="h-4 w-3/4" />
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">No project assigned.</p>
             )}

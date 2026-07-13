@@ -12,52 +12,95 @@ import {
 import { BarList } from "@/components/charts/bar-list";
 import { DonutStat } from "@/components/charts/donut-stat";
 import { StatCard } from "@/components/charts/stat-card";
+import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { DISPLAY_SCALE } from "@/lib/mock/data";
-import { useMockData } from "@/lib/mock/store";
+import DashboardLoading from "@/app/(dashboard)/loading";
+import { errorMessage } from "@/lib/api/client";
+import {
+  useDashboardSummary,
+  useFloorUtilization,
+  usePendingJoiners,
+  useProjects,
+  useProjectUtilization,
+} from "@/lib/api/hooks";
 import { formatDate, formatNumber } from "@/lib/utils";
 
 export function DashboardScreen() {
-  const { metrics, projectStats, floorStats, pendingJoiners, projectsById } = useMockData();
-  const d = metrics.display;
+  const summary = useDashboardSummary();
+  const projectUtilization = useProjectUtilization();
+  const floorUtilization = useFloorUtilization();
+  const pendingJoiners = usePendingJoiners();
+  const projects = useProjects();
+
+  if (summary.isError || projectUtilization.isError || floorUtilization.isError) {
+    const error =
+      summary.error ?? projectUtilization.error ?? floorUtilization.error;
+    return (
+      <>
+        <PageHeader
+          title="Dashboard"
+          description="Live overview of seats, occupancy and allocation across Ethara."
+        />
+        <ErrorState
+          title="Could not load dashboard metrics"
+          description="The Ethara API did not respond. Check that the backend is running, then try again."
+          detail={errorMessage(error)}
+          onRetry={() => {
+            summary.refetch();
+            projectUtilization.refetch();
+            floorUtilization.refetch();
+          }}
+        />
+      </>
+    );
+  }
+
+  if (!summary.data || !projectUtilization.data || !floorUtilization.data) {
+    return <DashboardLoading />;
+  }
+
+  const metrics = summary.data;
+  const projectsById = new Map((projects.data ?? []).map((p) => [p.id, p]));
+  const joiners = pendingJoiners.data ?? [];
+  const seatsPerFloor = floorUtilization.data[0]?.total ?? 0;
 
   const stats = [
     {
       label: "Total Employees",
-      value: formatNumber(d.totalEmployees),
+      value: formatNumber(metrics.total_employees),
       icon: Users,
-      hint: "across 11 projects",
+      hint: `across ${projectUtilization.data.length} projects`,
     },
     {
       label: "Total Seats",
-      value: formatNumber(d.totalSeats),
+      value: formatNumber(metrics.total_seats),
       icon: Armchair,
-      hint: "5 floors · 10 zones",
+      hint: `${floorUtilization.data.length} floors · ${floorUtilization.data.length * 2} zones`,
     },
     {
       label: "Occupied",
-      value: formatNumber(d.occupied),
+      value: formatNumber(metrics.occupied),
       icon: DoorOpen,
-      hint: `${metrics.utilizationPct}% utilization`,
+      hint: `${metrics.utilization_pct}% utilization`,
     },
     {
       label: "Available",
-      value: formatNumber(d.available),
+      value: formatNumber(metrics.available),
       icon: CircleCheck,
       hint: "ready to allocate",
     },
     {
       label: "Reserved / Maintenance",
-      value: formatNumber(d.reserved + d.maintenance),
+      value: formatNumber(metrics.reserved + metrics.maintenance),
       icon: Lock,
       hint: "blocked from allocation",
     },
     {
       label: "Pending Allocation",
-      value: formatNumber(d.pendingJoiners),
+      value: formatNumber(metrics.pending_joiners),
       icon: UserPlus,
       hint: "new joiners awaiting seats",
     },
@@ -68,7 +111,7 @@ export function DashboardScreen() {
       <PageHeader
         title="Dashboard"
         description="Live overview of seats, occupancy and allocation across Ethara."
-        actions={<Badge variant="outline">Mock data · updates on every allocation</Badge>}
+        actions={<Badge variant="outline">Live API · recomputed on every allocation</Badge>}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
@@ -85,11 +128,11 @@ export function DashboardScreen() {
           </CardHeader>
           <CardContent>
             <BarList
-              items={projectStats.map((stat) => ({
+              items={projectUtilization.data.map((stat) => ({
                 key: String(stat.project.id),
                 label: stat.project.name,
                 value: stat.headcount,
-                displayValue: `${formatNumber(stat.headcount * DISPLAY_SCALE)} people · ${formatNumber(stat.seated * DISPLAY_SCALE)} seats`,
+                displayValue: `${formatNumber(stat.headcount)} people · ${formatNumber(stat.seated)} seats`,
                 href: `/projects/${stat.project.id}`,
               }))}
             />
@@ -103,7 +146,7 @@ export function DashboardScreen() {
               <CardDescription>Occupied share of all seats</CardDescription>
             </CardHeader>
             <CardContent className="flex items-center justify-center pb-8">
-              <DonutStat pct={metrics.utilizationPct} label="occupied" />
+              <DonutStat pct={metrics.utilization_pct} label="occupied" />
             </CardContent>
           </Card>
 
@@ -112,7 +155,7 @@ export function DashboardScreen() {
               <div className="space-y-1.5">
                 <CardTitle>New joiners pending</CardTitle>
                 <CardDescription>
-                  {formatNumber(d.pendingJoiners)} awaiting seat allocation
+                  {formatNumber(metrics.pending_joiners)} awaiting seat allocation
                 </CardDescription>
               </div>
               <Button asChild variant="outline" size="sm">
@@ -120,13 +163,15 @@ export function DashboardScreen() {
               </Button>
             </CardHeader>
             <CardContent className="space-y-2">
-              {pendingJoiners.length === 0 ? (
+              {joiners.length === 0 ? (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CircleCheck className="size-4 shrink-0 text-success" aria-hidden="true" />
-                  Queue is clear — every new joiner has a seat.
+                  {pendingJoiners.isPending
+                    ? "Loading the queue…"
+                    : "Queue is clear — every new joiner has a seat."}
                 </p>
               ) : (
-                pendingJoiners.slice(0, 4).map((joiner) => (
+                joiners.slice(0, 4).map((joiner) => (
                   <div key={joiner.id} className="flex items-center justify-between gap-3 text-sm">
                     <Link
                       href={`/employees/${joiner.id}`}
@@ -150,17 +195,17 @@ export function DashboardScreen() {
         <CardHeader>
           <CardTitle>Floor-wise occupancy</CardTitle>
           <CardDescription>
-            Occupied seats per floor (of {formatNumber(d.totalSeats / 5)} each)
+            Occupied seats per floor (of {formatNumber(seatsPerFloor)} each)
           </CardDescription>
         </CardHeader>
         <CardContent>
           <BarList
-            items={floorStats.map((stat) => ({
+            items={floorUtilization.data.map((stat) => ({
               key: String(stat.floor),
               label: `Floor ${stat.floor}`,
-              value: stat.occupancyPct,
-              displayValue: `${formatNumber(stat.occupied * DISPLAY_SCALE)} / ${formatNumber(stat.total * DISPLAY_SCALE)} · ${stat.occupancyPct}%`,
-              secondary: `${formatNumber(stat.available * DISPLAY_SCALE)} available · ${formatNumber(stat.reserved * DISPLAY_SCALE)} reserved · ${formatNumber(stat.maintenance * DISPLAY_SCALE)} maintenance`,
+              value: stat.occupancy_pct,
+              displayValue: `${formatNumber(stat.occupied)} / ${formatNumber(stat.total)} · ${stat.occupancy_pct}%`,
+              secondary: `${formatNumber(stat.available)} available · ${formatNumber(stat.reserved)} reserved · ${formatNumber(stat.maintenance)} maintenance`,
             }))}
           />
         </CardContent>

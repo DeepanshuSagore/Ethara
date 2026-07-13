@@ -1,36 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Ethara Frontend (Next.js)
 
-## Getting Started
+Admin console for the Ethara Seat Allocation & Project Mapping System — Next.js App Router +
+TypeScript + Tailwind CSS v4, fetching live data from the FastAPI backend with TanStack Query.
 
-First, run the development server:
+## Run it
+
+The UI expects the backend on **http://localhost:8000** (see
+[../backend/README.md](../backend/README.md) — migrate + seed + `uvicorn` first).
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.local.example .env.local   # optional — defaults already point at localhost:8000
+npm run dev                        # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+| Env var | Default | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | `http://localhost:8000` | Base URL of the FastAPI backend (inlined at build time) |
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Checks: `npm run lint` · `npx tsc --noEmit` · `npm run build`.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## How data flows (Phase 7)
 
-## Learn More
+- `src/lib/api/client.ts` — typed `apiFetch` wrapper: query-string builder, abort-signal
+  passthrough, `ApiError` carrying the API's `detail` message (409s surface business-rule
+  violations verbatim in toasts).
+- `src/lib/api/{employees,projects,seats,allocations,dashboard,ai}.ts` — one module per resource,
+  exact backend paths only.
+- `src/lib/api/hooks.ts` — the TanStack Query surface every screen consumes: dashboard metrics,
+  employees (server-side `?search=&department=&project_id=&status=` + `limit`/`offset`), projects,
+  per-floor seats, rule-5 suggestions, a `useSeatIndex()` joining ACTIVE `/allocations` with
+  `/seats` for who-sits-where lookups, and allocate/release/add-joiner mutations that invalidate
+  the cache so the dashboard, seat map and lists refetch live (business rule 8).
+- Screens: Dashboard, Employees (list + detail), Projects (list + detail), Seats (floor-tab map +
+  allocate/release dialog), New Joiners (pending queue + suggestions), Assistant (`POST /ai/query`).
+  Loading skeletons / empty states / error states with retry are driven by real fetch status.
+- Demo-mode role switcher (Admin / HR / Project / Employee) is UI-only and gates the
+  allocate/release/add actions.
 
-To learn more about Next.js, take a look at the following resources:
+## Structure
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```
+src/
+├── app/                # App Router: (dashboard) route group, providers, loading/error states
+├── components/         # ui primitives · layout shell · charts · per-domain screens
+├── lib/
+│   ├── api/            # typed fetch client + TanStack Query hooks (Phase 7)
+│   ├── constants.ts    # nav, roles, floors/zones, departments
+│   └── demo-role.tsx   # demo-mode role store
+└── types/              # shared domain types mirroring the DB schema
+```

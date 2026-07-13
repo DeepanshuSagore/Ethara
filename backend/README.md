@@ -38,6 +38,7 @@ psycopg v3) on Render — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md).
 | `POST /seats/allocate` | `{employee_id, seat_id}` → 201 allocation | 404 · 409 rules 1/2/4 |
 | `POST /seats/release` | `{seat_id}` → allocation `RELEASED`, seat `AVAILABLE` (rule 3) | 404 · 409 no active allocation |
 | `GET /seats/{id}` | Detail (convenience) | 404 |
+| `GET /allocations` | Allocation rows — `?employee_id=&seat_id=&status=` (+ `limit`/`offset`); Phase 7 convenience so the UI can resolve who sits where | 422 bad status |
 | `GET /dashboard/summary` | Live headline metrics (rule 8) | — |
 | `GET /dashboard/project-utilization` | Headcount/seated/home zone per project | — |
 | `GET /dashboard/floor-utilization` | Seat counts + occupancy per floor | — |

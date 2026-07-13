@@ -12,7 +12,8 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
-import { useMockData } from "@/lib/mock/store";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useProjects, useSeatIndex } from "@/lib/api/hooks";
 import type { Employee } from "@/types";
 
 export type EmployeeSortKey = "name" | "employee_code" | "department";
@@ -76,7 +77,9 @@ export function EmployeeTable({
   onSortChange,
 }: EmployeeTableProps) {
   const router = useRouter();
-  const { projectsById, seatByEmployee } = useMockData();
+  const { data: projects } = useProjects();
+  const { seatByEmployee, isLoading: seatIndexLoading } = useSeatIndex();
+  const projectsById = new Map((projects ?? []).map((p) => [p.id, p]));
 
   return (
     <Table>
@@ -142,6 +145,8 @@ export function EmployeeTable({
                     {seat.seat_code}
                     <span className="text-xs text-muted-foreground"> · F{seat.floor}</span>
                   </span>
+                ) : seatIndexLoading ? (
+                  <Skeleton className="h-4 w-14" />
                 ) : (
                   <span className="text-muted-foreground">—</span>
                 )}

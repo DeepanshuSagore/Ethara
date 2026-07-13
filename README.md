@@ -50,20 +50,29 @@ Ethara/
 
 ## 🚀 Getting Started
 
-### Frontend
-```bash
-cd frontend
-npm install
-npm run dev            # http://localhost:3000
-```
+Run both servers together — the frontend reads live data from the API.
 
-### Backend
+### 1. Backend (FastAPI on :8000)
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+alembic upgrade head             # create the schema (SQLite by default)
+python -m app.seed.run           # seed 5,000 employees / 5,600 seats / 11 projects
 uvicorn app.main:app --reload    # http://localhost:8000  (Swagger at /docs)
 ```
+
+### 2. Frontend (Next.js on :3000)
+```bash
+cd frontend
+npm install
+cp .env.local.example .env.local # optional — defaults to http://localhost:8000
+npm run dev                      # http://localhost:3000
+```
+
+With both up, the dashboard shows the live seeded volumes (4,990 active employees,
+5,600 seats, 88% utilization), and every allocate/release/add-joiner action round-trips
+through the API (try asking the Assistant: *"Where is my seat? My email is amit@ethara.ai"*).
 
 ---
 

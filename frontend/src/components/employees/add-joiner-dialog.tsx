@@ -20,11 +20,23 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
-import { useMockData } from "@/lib/mock/store";
+import { errorMessage } from "@/lib/api/client";
+import { useAddJoiner, useProjects } from "@/lib/api/hooks";
+import { DEPARTMENTS } from "@/lib/constants";
+
+/**
+ * Time-derived code (ETH-<seconds mod 10^6>) — the seeded range stops at
+ * ETH-5000, so collisions are practically impossible; the API's 409 (rule 6)
+ * still backstops duplicates.
+ */
+function generateEmployeeCode() {
+  return `ETH-${String(Math.floor(Date.now() / 1000) % 1_000_000).padStart(6, "0")}`;
+}
 
 /** Admin/HR dialog: add a new joiner to the pending-allocation queue. */
 export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
-  const { projects, employees, addJoiner } = useMockData();
+  const { data: projects } = useProjects();
+  const addJoiner = useAddJoiner();
   const { toast } = useToast();
 
   const [open, setOpen] = React.useState(false);
@@ -33,8 +45,6 @@ export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
   const [department, setDepartment] = React.useState("");
   const [role, setRole] = React.useState("");
   const [projectId, setProjectId] = React.useState("");
-
-  const departments = [...new Set(employees.map((e) => e.department))].sort();
 
   const reset = () => {
     setName("");
@@ -54,23 +64,35 @@ export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
       });
       return;
     }
-    const result = addJoiner({
-      name,
-      email,
-      department,
-      role,
-      project_id: Number(projectId),
-    });
-    if (!result.ok) {
-      toast({ title: "Could not add employee", description: result.error, variant: "destructive" });
-      return;
-    }
-    toast({
-      title: "New joiner added",
-      description: `${name.trim()} joined the pending-allocation queue.`,
-    });
-    reset();
-    setOpen(false);
+    const joinerName = name.trim();
+    addJoiner.mutate(
+      {
+        employee_code: generateEmployeeCode(),
+        name: joinerName,
+        email: email.trim().toLowerCase(),
+        department,
+        role: role.trim(),
+        joining_date: new Date().toISOString(),
+        project_id: Number(projectId),
+      },
+      {
+        onSuccess: () => {
+          toast({
+            title: "New joiner added",
+            description: `${joinerName} joined the pending-allocation queue.`,
+          });
+          reset();
+          setOpen(false);
+        },
+        onError: (error) =>
+          // Surfaces the API's 409 detail verbatim (duplicate email — rule 6).
+          toast({
+            title: "Could not add employee",
+            description: errorMessage(error),
+            variant: "destructive",
+          }),
+      }
+    );
   };
 
   return (
@@ -118,7 +140,7 @@ export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
                   <SelectValue placeholder="Select department" />
                 </SelectTrigger>
                 <SelectContent>
-                  {departments.map((dept) => (
+                  {DEPARTMENTS.map((dept) => (
                     <SelectItem key={dept} value={dept}>
                       {dept}
                     </SelectItem>
@@ -146,7 +168,7 @@ export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
+                  {(projects ?? []).map((project) => (
                     <SelectItem key={project.id} value={String(project.id)}>
                       {project.name}
                     </SelectItem>
@@ -160,7 +182,9 @@ export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="submit">Add to queue</Button>
+            <Button type="submit" disabled={addJoiner.isPending}>
+              {addJoiner.isPending ? "Adding…" : "Add to queue"}
+            </Button>
           </DialogFooter>
         </form>
       </DialogContent>

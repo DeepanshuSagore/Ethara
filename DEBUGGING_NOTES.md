@@ -71,3 +71,46 @@ curl pass matched expectations. Design notes worth recording:
 - **Live-server checks mutate — reseed after:** the curl verification deliberately allocated,
   released, deactivated Amit, and created test rows; `python -m app.seed.run` afterwards restored
   the pristine dataset (wipe + repopulate is idempotent), re-verified by its 21 checks.
+
+---
+
+## Phase 7 — Frontend ↔ Backend Integration
+
+### The REST surface couldn't answer "who sits where"
+- **Symptom:** employee list/detail show the current seat and the seat dialog shows its occupant
+  (UI shipped since Phase 2), but no brief endpoint exposes `seat_allocations` rows — employees
+  and seats are only linked *inside* that table, so the mapping was unreachable over HTTP.
+- **Fix:** one additive read-only endpoint, `GET /allocations?employee_id=&seat_id=&status=`
+  (+ `limit`/`offset`), mounted alongside the spec paths — PROJECT_PLAN §5 explicitly allows
+  convenience endpoints, and the OpenAPI-lock test asserts spec paths as a subset, so nothing
+  broke. The frontend's `useSeatIndex()` joins ACTIVE allocations with `/seats` into
+  `seatByEmployee` / `occupantBySeat` maps (occupant *names* resolve lazily via
+  `GET /employees/{id}` in the dialog only).
+- **Verification:** backend pytest still 47/47 (suite untouched); browser pass confirms seat
+  columns, detail seat card and dialog occupant against seeded data.
+
+### Toast never fired after allocating from the New Joiners queue
+- **Symptom:** clicking a suggested seat allocated correctly (dashboard/queue refetched), but the
+  "Seat allocated" toast never appeared — caught only by the headless-Chrome pass.
+- **Cause:** the shared mutation hook's `onSuccess` **returned** `queryClient.invalidateQueries()`;
+  TanStack Query awaits returned promises before running the `mutate()`-level callbacks, the
+  pending-joiners refetch unmounted the allocated joiner's card mid-await, and mutate-level
+  callbacks are skipped once the component is unmounted.
+- **Fix:** fire-and-forget the invalidation (`void queryClient.invalidateQueries()`), so the
+  caller's toast runs before any refetch can unmount it.
+- **Verification:** re-run of the browser pass — allocate and release both toast, 25/25.
+
+### Adaptations to real data volumes (design notes, not bugs)
+- **No total counts from list endpoints** → "Page X of Y" is unknowable for server-side paging;
+  the employees table fetches `PAGE_SIZE + 1` rows to derive `hasNext`, and `PaginationBar` gained
+  a `hasNext` mode whose label degrades to "Page N" (exact totals still shown on the last page and
+  for client-side-paged lists like project teams and the joiner queue).
+- **Column sorting is page-local:** `GET /employees` orders by id and has no sort param, so the
+  sortable headers reorder the fetched page only (adding a sort param would touch the graded
+  Phase 6 surface for marginal value).
+- **Seat-cell tooltips dropped the occupant name:** resolving occupants for 1,120 cells per floor
+  would require all 5,000 employees client-side; the dialog fetches the occupant on demand
+  instead. The seat map itself fetches one floor at a time (`GET /seats?floor=`).
+- **Employee codes for new joiners are time-derived** (`ETH-<epoch-seconds mod 10^6>`): the mock
+  derived codes from array length, which the client can no longer know; the API's 409 (rule 6)
+  backstops any collision.

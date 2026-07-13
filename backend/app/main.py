@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 import app.models  # noqa: F401 — register all tables on Base at import time
-from app.api import ai, dashboard, employees, projects, seats
+from app.api import ai, allocations, dashboard, employees, projects, seats
 from app.core.config import settings
 
 app = FastAPI(
@@ -46,5 +46,6 @@ def health() -> dict:
 app.include_router(employees.router)
 app.include_router(projects.router)
 app.include_router(seats.router)
+app.include_router(allocations.router)
 app.include_router(dashboard.router)
 app.include_router(ai.router)

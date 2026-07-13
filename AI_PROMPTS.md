@@ -358,6 +358,67 @@ and the seat dialog fits a phone viewport (343px). Loading states proven at the 
 (the production `next start` HTML for `/employees` serves the shaped skeleton); per-route
 `<title>`s curl-verified, including dynamic "Amit Sharma · Ethara" / "Mydreed · Ethara".
 
+### Phase 7 — Frontend ↔ Backend Integration
+
+**Prompt:** "Replace the mock store with the real API: install TanStack Query, build a typed
+fetch client in `src/lib/api/` (one module per resource, base URL from `NEXT_PUBLIC_API_URL`
+defaulting to localhost:8000), expose query/mutation hooks covering the mock store's whole hook
+surface, wire every screen (dashboard's three endpoints, employees list/detail with **server-side**
+search/filters and limit/offset paging, projects list/detail, seat map with per-floor fetching +
+allocate/release dialogs, new-joiner queue with `GET /seats/suggestions` and `POST /employees`,
+assistant on `POST /ai/query`, topbar `?search=`), drive the Phase 3 loading/empty/error states
+from real fetch status, remove `src/lib/mock` and all ×20 display scaling, and keep lint/tsc/build
+green. Don't reshape backend responses to fit the UI."
+
+**AI output:** ~25 files. `src/lib/api/`: `client.ts` (URL builder, `ApiError` carrying FastAPI's
+`detail` — string or 422 field list — plus abort-signal passthrough), one module per resource
+(`employees`/`projects`/`seats`/`allocations`/`dashboard`/`ai`), and `hooks.ts` — the TanStack
+Query surface (`useDashboardSummary`/`useProjectUtilization`/`useFloorUtilization`,
+`useEmployees`/`useEmployee`/`usePendingJoiners`, `useProjects`/`useProject`/`useProjectEmployees`,
+`useSeats`/`useSeatSuggestions`, a `useSeatIndex` that joins ACTIVE `/allocations` with `/seats`
+into who-sits-where maps, and `useAllocateSeat`/`useReleaseSeat`/`useAddJoiner`/`useAiQuery`
+mutations that invalidate the whole cache so dashboard/seat-map/lists refetch — rule 8
+server-side). `QueryClientProvider` replaced `MockDataProvider`; every screen rewired; dashboard
+response types added to `src/types/`; `FLOORS`/`ZONES`/`DEPARTMENTS` moved to `lib/constants.ts`;
+detail-route `generateMetadata` now fetches the API server-side with a graceful fallback title;
+`src/lib/mock/` deleted; `.env.local.example` documents `NEXT_PUBLIC_API_URL`. One additive
+backend endpoint (`GET /allocations`) — see Incorrect below.
+
+**Correct:** The Phase 4 decision to mirror types field-for-field paid off — no response
+reshaping anywhere, the swap was mechanical (snake_case fields flowed straight into the
+components). Server-side filtering replaced the client pipeline (search deferred via
+`useDeferredValue`, `keepPreviousData` so typing/paging never flashes skeletons); the seat map
+fetches one floor at a time (`?floor=`, 1,120 of 5,600 seats) instead of scaling a 280-seat mock;
+lint/tsc/build stayed green on the first full pass after the swap.
+
+**Incorrect:** The brief's REST surface has no way to answer "who sits where" (seat_allocations
+was never exposed; the mock store derived it from its own allocation rows) — employee detail/table
+seat columns and the seat-dialog occupant were unimplementable. Fixed with one additive
+read-only endpoint `GET /allocations?employee_id=&seat_id=&status=` (PROJECT_PLAN §5 explicitly
+allows convenience endpoints; existing 47 tests untouched). Second bug caught by the browser pass:
+mutation `onSuccess` returned `invalidateQueries()`, TanStack awaited it before firing the
+caller's callbacks, and the refetched queue unmounted the joiner card first — so its "Seat
+allocated" toast never fired (mutate-level callbacks are skipped after unmount). Fixed by not
+awaiting the invalidation. Also, list endpoints return no total count, so "Page X of Y" is
+unknowable server-side — `PaginationBar` gained a `hasNext` mode (fetch pageSize+1) and the label
+degrades to "Page N"; and seat-cell tooltips dropped the occupant name (resolving 1,120 occupants
+per floor would mean loading all 5,000 employees for tooltips — the dialog looks the occupant up
+lazily instead).
+
+**Manual fixes:** None beyond the above (all caught and fixed in-session).
+
+**Verification:** Fresh seeded DB + uvicorn :8000 + `next dev` :3000, driven by headless system
+Chrome (playwright-core): 25/25 checks — dashboard renders 4,990 / 5,600 / 4,940 @ 88% / 510 / 50;
+searching "amit@ethara.ai" finds Amit Sharma (ETH-0001) with seat A1-1 server-side; employee 1
+detail shows A1-1 / Floor 1 / Indigo with an API-fetched `<title>`; Indigo detail shows 455
+headcount / 450 seated / zone 1A with a 19-page team table; floor 1 renders exactly 1,120 live
+seat cells; allocating a pending joiner from a suggestion fires the toast and moves the dashboard
+to 4,941 / 509 / 49 pending **without reload**; releasing that seat restores 4,940 / 510; the
+assistant answers the brief's amit@ethara.ai question via `POST /ai/query`; topbar search
+deep-links to the filtered directory. `npm run lint` zero problems, `tsc --noEmit` clean,
+`next build` green (10 routes); backend `pytest` still 47/47; DB reseeded after the destructive
+run (`python -m app.seed.run`, 21/21 checks).
+
 ---
 
 ## 7. Testing
@@ -408,7 +469,26 @@ env var lists, and CORS setup."
 
 ## 10. Refactoring
 
-_Logged as refactors occur (e.g. mock→API data-source swap in Phase 7)._
+**Prompt:** _(Phase 7)_ "Swap the Phase 2 mock data source for the real API without disturbing the
+screens' behavior: the mock store's hook surface becomes TanStack Query hooks, `src/lib/mock` is
+deleted from the app path, and all ×20 `DISPLAY_SCALE` presentation math goes away because the
+backend holds real volumes."
+
+**AI output / what changed:** The planned mock→API swap landed as designed. `MockDataProvider`
+(client-state store, rule-enforcing actions, derived maps) → `QueryClientProvider` + `src/lib/api/`
+hooks with the same conceptual surface (`metrics` → `useDashboardSummary`, `projectStats` →
+`useProjectUtilization`, `floorStats` → `useFloorUtilization`, `pendingJoiners` →
+`usePendingJoiners`, `seatByEmployee`/`occupantBySeat` → `useSeatIndex`, `suggestSeatsFor` →
+`useSeatSuggestions`, `allocateSeat`/`releaseSeat`/`addJoiner` → mutation hooks). Business rules
+moved from client code to their real home (the Phase 6 services); the UI now only *reports* rule
+violations via the API's 409 details in toasts. Layout constants the seat-map skeleton needed
+(`FLOORS`, `ZONES`) and the department list moved from `lib/mock/data.ts` into `lib/constants.ts`.
+`generateMetadata` on the detail routes swapped the deterministic dataset lookup for a server-side
+API fetch with fallback titles. Net: `src/lib/mock/` (3 files, ~600 lines incl. the PRNG and
+generator) deleted; types in `src/types/` unchanged plus three new dashboard response shapes.
+
+**Verification:** `grep -r "lib/mock\|DISPLAY_SCALE\|useMockData"` over `src/` returns nothing;
+lint/tsc/build green; the 25-check browser pass in §6 Phase 7 exercised every migrated screen.
 
 ---
 

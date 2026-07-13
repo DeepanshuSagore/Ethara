@@ -7,7 +7,6 @@ import type { Seat } from "@/types";
 
 interface SeatCellProps {
   seat: Seat;
-  occupantName?: string;
   onSelect: (seat: Seat) => void;
 }
 
@@ -22,8 +21,11 @@ const STYLES: Record<Seat["status"], string> = {
   MAINTENANCE: "border-border bg-muted text-muted-foreground hover:bg-muted/70",
 };
 
-export function SeatCell({ seat, occupantName, onSelect }: SeatCellProps) {
-  const label = `Seat ${seat.seat_code}, Floor ${seat.floor}, ${SEAT_STATUS_LABELS[seat.status]}${occupantName ? `, ${occupantName}` : ""}`;
+// The occupant's name is looked up lazily in the seat dialog rather than
+// per-cell — with 1,120 seats per floor, resolving every occupant up front
+// would mean loading all 5,000 employees for tooltips alone.
+export function SeatCell({ seat, onSelect }: SeatCellProps) {
+  const label = `Seat ${seat.seat_code}, Floor ${seat.floor}, ${SEAT_STATUS_LABELS[seat.status]}`;
 
   return (
     <button
