@@ -1,15 +1,17 @@
 # AI Prompts & Usage Log
 
-Documentation of AI-tool usage during development, as required by the assessment (Section 9).
-Structured to cover: planning, database design, backend, seat-allocation logic, AI assistant,
-frontend, testing, debugging, deployment, and refactoring — with what the AI got **right**, what it
-got **wrong**, what was **manually fixed**, and how it was **verified**.
+Documentation of **all AI usage** during development, as required by the assessment (Section 9):
+the **prompts used**, the **outputs generated**, the **manual fixes applied**, and the
+**validation methods** used to verify correctness. Structured to cover: planning, database design,
+backend, seat-allocation logic, AI assistant, frontend, testing, debugging, deployment, and
+refactoring.
 
 - **Primary AI tool:** Claude (via Claude Code) — architecture, code generation, docs, debugging.
 - **In-product AI:** Groq (Llama 3.x) powers the app's natural-language assistant feature.
 
-> Each entry uses this template:
-> **Prompt** · **AI output** · **Correct** · **Incorrect** · **Manual fixes** · **Verification**
+> Each entry uses this template, mapping 1:1 to the requirement:
+> **Prompt** (prompt used) · **AI output** (output generated) · **Correct / Incorrect** (review of
+> that output) · **Manual fixes** (fixes applied) · **Verification** (validation method)
 
 ---
 
@@ -99,6 +101,15 @@ Dialog, Select, Tabs, Skeleton, Toast) on Radix + lucide-react with a `cn()` uti
 app shell (Sidebar/Topbar/RoleSwitcher/PageHeader) in a `(dashboard)` route group, and a full
 routing skeleton (Dashboard, Employees, Projects, Seats, New Joiners, Analytics, Assistant,
 not-found) — accessible and responsive."
+
+**AI output:** ~40 files: design tokens in `globals.css` (semantic CSS variables per theme mapped
+through `@theme inline`, radius/shadow scales, `text-metric` tabular-numeral utility, `animate-in`
+keyframe); 11 typed primitives in `src/components/ui/` (Button/Card/Input/Badge/Table/Dialog/
+Select/Tabs/Skeleton/Toast+Toaster/DropdownMenu) on Radix + lucide-react with `cn()`; app shell in
+`src/components/layout/` (collapsible Sidebar, Topbar with global search, Demo-Mode RoleSwitcher
+backed by a localStorage-persisted `useRole()` context, ThemeToggle, PageHeader, mobile drawer);
+`(dashboard)` route group with 7 pages + branded `not-found.tsx`; next-themes provider wiring.
+Committed as `7c0571a`.
 
 **Correct:** Semantic-token architecture (CSS vars per theme mapped via `@theme inline`) worked
 first try; all 10 primitives typechecked; class-driven dark mode via next-themes with
