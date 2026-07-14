@@ -24,4 +24,5 @@ DbDep = Annotated[Session, Depends(get_db)]
     summary='Ask a natural-language question (e.g. "Where is my seat? My email is amit@ethara.ai")',
 )
 def query(payload: AiQueryRequest, db: DbDep):
-    return {"answer": ai_service.answer_query(db, payload.query)}
+    history = [turn.model_dump() for turn in payload.history]
+    return {"answer": ai_service.answer_query(db, payload.query, history)}

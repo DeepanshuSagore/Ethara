@@ -1,5 +1,5 @@
 """Pydantic schemas — request/response models mirroring frontend/src/types."""
-from app.schemas.ai import AiQueryRequest, AiQueryResponse
+from app.schemas.ai import AiChatTurn, AiQueryRequest, AiQueryResponse
 from app.schemas.base import (
     AllocationStatus,
     EmployeeStatus,
@@ -37,6 +37,7 @@ __all__ = [
     "EmployeeStatus",
     "ProjectStatus",
     "SeatStatus",
+    "AiChatTurn",
     "AiQueryRequest",
     "AiQueryResponse",
     "DashboardSummary",

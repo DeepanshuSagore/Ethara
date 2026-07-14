@@ -43,8 +43,15 @@ export function ChatPanel() {
     setMessages((prev) => [...prev, { id: nextId.current++, role: "user", content: trimmed }]);
     setInput("");
 
-    // POST /ai/query — Groq NL parsing with a deterministic DB fallback.
-    aiQuery.mutate(trimmed, {
+    // Recent turns ride along so follow-ups ("and floor 2?") keep context;
+    // error bubbles are UI state, not conversation.
+    const history = messages
+      .filter((message) => !message.error)
+      .slice(-8)
+      .map(({ role, content }) => ({ role, content }));
+
+    // POST /ai/query — Groq NL parsing + grounded chat, deterministic fallback.
+    aiQuery.mutate({ query: trimmed, history }, {
       onSuccess: ({ answer }) =>
         setMessages((prev) => [
           ...prev,
@@ -95,8 +102,8 @@ export function ChatPanel() {
                 Ask the directory
               </h2>
               <p className="max-w-md text-sm text-muted-foreground">
-                Ask in your own words. Groq turns the question into a live query over seats,
-                projects and people.
+                Ask in your own words: who sits where, what&apos;s free, how full a team or
+                floor is. Every answer comes from the live directory.
               </p>
             </div>
             <PromptGrid onPick={send} disabled={thinking} />

@@ -147,7 +147,7 @@ def test_project_occupancy_case_insensitive(client, dataset, groq_key, monkeypat
     mock_groq(monkeypatch, {"intent": "project_occupancy", "project": "indigo",
                             "email": None, "name": None, "floor": None, "confidence": 0.9})
     answer = ask(client, "how big is the indigo team?")
-    assert "Project Indigo has 1 members" in answer
+    assert "Project Indigo has 1 member" in answer
 
 
 def test_utilization_natural_phrasing(client, dataset, groq_key, monkeypatch):
@@ -155,6 +155,90 @@ def test_utilization_natural_phrasing(client, dataset, groq_key, monkeypatch):
                             "floor": None, "project": None, "confidence": 0.9})
     answer = ask(client, "how full is the office?")
     assert "utilization is 40%" in answer and "2 of 5 seats" in answer
+
+
+# --- grounded chat: on-topic questions beyond the fixed intents -----------------
+
+def mock_groq_sequence(monkeypatch, replies: list[dict | str]):
+    """Patch httpx.post to return each canned reply in order; records calls."""
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append({"url": url, **kwargs})
+        reply = replies[min(len(calls) - 1, len(replies) - 1)]
+        return groq_http_response(reply)
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    return calls
+
+
+def test_unknown_intent_gets_grounded_chat(client, dataset, groq_key, monkeypatch):
+    """Aggregate question: parse says unknown, chat stage answers from the fact pack."""
+    calls = mock_groq_sequence(monkeypatch, [
+        {"intent": "unknown", "email": None, "name": None,
+         "floor": None, "project": None, "confidence": 0.9},
+        "Right now 3 seats are free across the office, and nobody is waiting.",
+    ])
+    answer = ask(client, "how many seats are free overall?")
+    assert answer == "Right now 3 seats are free across the office, and nobody is waiting."
+    assert len(calls) == 2
+    # The chat call is grounded: live facts ride in the system prompt.
+    chat_system = calls[1]["json"]["messages"][0]["content"]
+    assert "Live data right now" in chat_system and "Indigo" in chat_system
+    assert "response_format" not in calls[1]["json"]
+
+
+def test_greeting_gets_grounded_chat(client, dataset, groq_key, monkeypatch):
+    mock_groq_sequence(monkeypatch, [
+        {"intent": "greeting", "email": None, "name": None,
+         "floor": None, "project": None, "confidence": 0.95},
+        "Hey! Ask me where someone sits, what's free on a floor, or how full a team is.",
+    ])
+    answer = ask(client, "hey")
+    assert answer.startswith("Hey!")
+
+
+def test_chat_strips_long_dashes(client, dataset, groq_key, monkeypatch):
+    mock_groq_sequence(monkeypatch, [
+        {"intent": "unknown", "email": None, "name": None,
+         "floor": None, "project": None, "confidence": 0.9},
+        "Floor 3 is quietest — 79% occupied – plenty of room.",
+    ])
+    answer = ask(client, "which floor is quietest?")
+    assert "—" not in answer and "–" not in answer and "-" in answer
+
+
+def test_chat_failure_falls_back(client, dataset, groq_key, monkeypatch):
+    """Parse succeeds with unknown, chat call blows up → deterministic guidance."""
+    calls = []
+
+    def fake_post(url, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            return groq_http_response({"intent": "unknown", "email": None, "name": None,
+                                       "floor": None, "project": None, "confidence": 0.9})
+        raise httpx.ReadTimeout("chat took too long")
+
+    monkeypatch.setattr(httpx, "post", fake_post)
+    assert "couldn't match" in ask(client, "help me with seats somehow")
+
+
+def test_history_rides_along(client, dataset, groq_key, monkeypatch):
+    calls = mock_groq_sequence(monkeypatch, [
+        {"intent": "floor_availability", "floor": 3, "email": None,
+         "name": None, "project": None, "confidence": 0.95},
+    ])
+    response = client.post("/ai/query", json={
+        "query": "and what about floor 3?",
+        "history": [
+            {"role": "user", "content": "any free seats on floor 1?"},
+            {"role": "assistant", "content": "Floor 1 has 1 available seat: A1-2."},
+        ],
+    })
+    assert response.status_code == 200
+    messages = calls[0]["json"]["messages"]
+    assert [m["role"] for m in messages] == ["system", "user", "assistant", "user"]
+    assert messages[1]["content"] == "any free seats on floor 1?"
 
 
 # --- off-topic / prompt injection → scoped refusal -----------------------------

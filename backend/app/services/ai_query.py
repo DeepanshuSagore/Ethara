@@ -98,9 +98,10 @@ def floor_availability_answer(db: Session, floor: int) -> str:
         return f"There are no available seats on Floor {floor} right now. Try another floor."
     codes = ", ".join(seat.seat_code for seat in available[:8])
     more = ", …" if len(available) > 8 else ""
+    noun = "seat" if len(available) == 1 else "seats"
     return (
-        f"Floor {floor} has {len(available)} available seats: {codes}{more}. "
-        "Use POST /seats/allocate to assign one."
+        f"Floor {floor} has {len(available)} available {noun}: {codes}{more}. "
+        "You can allocate one from the Seats page or any project's Allocate people flow."
     )
 
 
@@ -126,10 +127,12 @@ def project_answer(db: Session, project: Project) -> str:
             SeatAllocation.allocation_status == "ACTIVE",
         )
     )
+    member_noun = "member" if headcount == 1 else "members"
+    seat_noun = "seat" if seated == 1 else "seats"
     return (
-        f"Project {project.name} has {headcount} members and currently "
-        f"occupies {seated} seats. Its team clusters around one home zone. "
-        "See GET /dashboard/project-utilization for the full breakdown."
+        f"Project {project.name} has {headcount} {member_noun} and currently "
+        f"occupies {seated} {seat_noun}. Its team clusters around one home zone. "
+        "The Analytics page has the full breakdown."
     )
 
 

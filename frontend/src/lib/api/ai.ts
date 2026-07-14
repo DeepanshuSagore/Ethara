@@ -1,9 +1,15 @@
 import { apiFetch } from "./client";
 
-/** POST /ai/query — deterministic keyword engine now, Groq NL in Phase 8. */
-export function askAssistant(query: string) {
+/** One prior turn — lets the assistant resolve follow-ups server-side. */
+export interface AiChatTurn {
+  role: "user" | "assistant";
+  content: string;
+}
+
+/** POST /ai/query — Groq NL intent parse + grounded chat, deterministic fallback. */
+export function askAssistant(query: string, history: AiChatTurn[] = []) {
   return apiFetch<{ answer: string }>("/ai/query", {
     method: "POST",
-    body: { query },
+    body: { query, history },
   });
 }

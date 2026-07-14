@@ -96,7 +96,7 @@ export function SuggestedPrompts({ onPick, disabled }: SuggestedPromptsProps) {
             if (disabled) return;
             onPick(text);
           }}
-          className="shrink-0 cursor-pointer whitespace-nowrap rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:pointer-events-none aria-disabled:opacity-50"
+          className="shrink-0 cursor-pointer whitespace-nowrap rounded-full border border-border bg-muted/40 px-3.5 py-1.5 text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:pointer-events-none aria-disabled:opacity-50"
         >
           {text}
         </button>

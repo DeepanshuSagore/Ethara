@@ -438,7 +438,7 @@ def test_ai_query_project_occupancy(client, dataset):
     answer = client.post(
         "/ai/query", json={"query": "seats occupied for Serfy"}
     ).json()["answer"]
-    assert "Serfy" in answer and "1 members" in answer and "0 seats" in answer
+    assert "Serfy" in answer and "1 member" in answer and "0 seats" in answer
 
 
 def test_ai_query_utilization_and_fallback(client, dataset):
