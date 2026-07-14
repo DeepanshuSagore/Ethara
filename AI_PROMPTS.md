@@ -586,6 +586,35 @@ driven in headless Chrome.
 
 ---
 
+## 12. Data-Viz Refinement (infographic + designer-skills)
+
+**Prompt:** "npx -y skills add claude-office-skills/skills --skill infographic" plus the
+Owl-Listener/designer-skills plugin marketplace (ui-design plugin: color-system,
+data-visualization, dark-mode-design skills) — "for any possibility of improving our
+infographics on the data, and ... if we can improve our color palette."
+
+**AI output / what changed:** Palette audit against the color-system skill found the Blueprint
+tokens already compliant (semantic trios with AA contrast in both themes, dark mappings, never
+color-alone), so no palette change. The data-visualization skill exposed one real gap: the
+dashboard utilization donut drew a single occupied arc while its legend listed four statuses.
+`DonutStat` gained an optional `segments` prop rendering a true part-of-whole ring (butt-capped
+arcs, 2px surface gaps, contiguous sweep-in via paired dasharray/dashoffset transitions), fed by
+the same array as the legend so arc hues and dots cannot drift; legend rows gained share
+percentages.
+
+**Correct:** The dataviz palette validator passed CVD separation and 3:1 contrast for the four
+status hues on both card surfaces.
+
+**Incorrect / judgment call:** The validator flags Maintenance's gray ("reads gray") and the
+bright dark-mode solids (outside its lightness band) — both are deliberate: gray is the app-wide
+neutral for inactive stock, the bright solids are the Blueprint dark-theme status tokens, and
+identity never rides on color alone (labels + counts beside every hue).
+
+**Verification:** `tsc` + `next build` clean; card screenshots in both themes confirm arcs match
+legend hues with visible gaps; validator runs recorded for light and dark surfaces.
+
+---
+
 ## Appendix — Scaffolding (Phase 0)
 
 **Prompt:** "Scaffold Next.js (App Router, TS, Tailwind, src dir) frontend and a FastAPI backend

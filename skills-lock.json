@@ -6,6 +6,12 @@
       "sourceType": "github",
       "skillPath": "skills/taste-skill/SKILL.md",
       "computedHash": "6d838b246d0e35d0b53f4f23f98ba7a1dd561937e64f7d0c7553b0928e376c3e"
+    },
+    "infographic": {
+      "source": "claude-office-skills/skills",
+      "sourceType": "github",
+      "skillPath": "infographic/SKILL.md",
+      "computedHash": "1f81bbcfe4c2c6399f75b83cd4c85c2c2d0a95a3a28bd2162b511ce68cdaf57b"
     }
   }
 }

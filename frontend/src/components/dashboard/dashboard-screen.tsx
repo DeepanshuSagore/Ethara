@@ -34,6 +34,21 @@ import { cn, formatDate, formatNumber } from "@/lib/utils";
 const QUEUE_NAME_WIDTHS = ["w-32", "w-40", "w-28", "w-36"];
 const QUEUE_META_WIDTHS = ["w-44", "w-36", "w-48", "w-40"];
 
+/* Seat-status hues shared with the seat-map legend and the analytics floor
+   bars (occupied=accent, available=success, reserved=warning, maintenance=
+   neutral). One array feeds both the donut arcs and the legend rows. */
+const UTILIZATION_BREAKDOWN = [
+  { label: "Occupied", key: "occupied", dot: "bg-accent-solid", stroke: "var(--accent-solid)" },
+  { label: "Available", key: "available", dot: "bg-success", stroke: "var(--success)" },
+  { label: "Reserved", key: "reserved", dot: "bg-warning", stroke: "var(--warning)" },
+  {
+    label: "Maintenance",
+    key: "maintenance",
+    dot: "bg-muted-foreground",
+    stroke: "var(--muted-foreground)",
+  },
+] as const;
+
 export function DashboardScreen() {
   const summary = useDashboardSummary();
   const projectUtilization = useProjectUtilization();
@@ -178,19 +193,22 @@ export function DashboardScreen() {
               <CardTitle>Seat utilization</CardTitle>
               <CardDescription>Occupied share of all seats</CardDescription>
             </CardHeader>
-            {/* Donut + status breakdown: same hues as the seat map legend and
-                the analytics floor bars, so status reads identically app-wide. */}
+            {/* Segmented part-of-whole donut + status breakdown: same hues as
+                the seat map legend and the analytics floor bars, so status
+                reads identically app-wide. Arc colors and legend dots come
+                from one array so they can never drift apart. */}
             <CardContent className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
-              <DonutStat pct={metrics.utilization_pct} label="occupied" size={124} />
+              <DonutStat
+                pct={metrics.utilization_pct}
+                label="occupied"
+                size={124}
+                segments={UTILIZATION_BREAKDOWN.map(({ key, stroke }) => ({
+                  value: metrics[key],
+                  stroke,
+                }))}
+              />
               <dl className="min-w-40 space-y-2.5">
-                {(
-                  [
-                    { label: "Occupied", key: "occupied", dot: "bg-accent-solid" },
-                    { label: "Available", key: "available", dot: "bg-success" },
-                    { label: "Reserved", key: "reserved", dot: "bg-warning" },
-                    { label: "Maintenance", key: "maintenance", dot: "bg-muted-foreground" },
-                  ] as const
-                ).map(({ label, key, dot }) => (
+                {UTILIZATION_BREAKDOWN.map(({ label, key, dot }) => (
                   <div key={key} className="flex items-center gap-2">
                     <dt className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span
@@ -201,6 +219,14 @@ export function DashboardScreen() {
                     </dt>
                     <dd className="text-metric ml-auto font-mono text-sm font-medium">
                       {formatNumber(metrics[key])}
+                      <span className="text-muted-foreground">
+                        {" "}
+                        ·{" "}
+                        {metrics.total_seats
+                          ? Math.round((metrics[key] / metrics.total_seats) * 100)
+                          : 0}
+                        %
+                      </span>
                     </dd>
                   </div>
                 ))}
