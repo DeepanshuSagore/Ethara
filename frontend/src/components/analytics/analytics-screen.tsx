@@ -75,8 +75,8 @@ export function AnalyticsScreen() {
   );
   const occupancies = floors.map((stat) => stat.occupancy_pct);
   const spread = floors.length
-    ? `${Math.min(...occupancies)}–${Math.max(...occupancies)}%`
-    : "—";
+    ? `${Math.min(...occupancies)}-${Math.max(...occupancies)}%`
+    : "n/a";
 
   const signals = [
     {
@@ -85,33 +85,37 @@ export function AnalyticsScreen() {
       format: (v: number) => `${Math.round(v)}%`,
       icon: Gauge,
       hint: "mean share of each team with a seat",
+      tone: "sky",
     },
     {
       label: "Fully seated projects",
       value: fullySeated,
       icon: BadgeCheck,
       hint: `of ${formatNumber(staffed.length)} staffed projects`,
+      tone: "emerald",
     },
     {
       label: "People without a seat",
       value: unseated,
       icon: UserRoundMinus,
       hint: "headcount minus allocated seats",
+      tone: "rose",
     },
     {
       label: "Floor occupancy spread",
       value: spread,
       icon: Layers,
       hint: "quietest vs busiest floor",
+      tone: "violet",
     },
-  ];
+  ] as const;
 
   return (
     <>
       {header}
 
       <SectionHeading index="01" title="Signals" />
-      <div className="stagger-children grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="stagger-children grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 xl:grid-cols-4">
         {signals.map((signal) => (
           <StatCard key={signal.label} {...signal} />
         ))}
@@ -122,7 +126,7 @@ export function AnalyticsScreen() {
         <CardHeader>
           <CardTitle>Seating coverage by project</CardTitle>
           <CardDescription>
-            Share of each team with an allocated seat — lowest coverage first
+            Share of each team with an allocated seat, lowest coverage first
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -170,7 +174,7 @@ export function AnalyticsScreen() {
                     visuals inside presentational, so AT hears the data once. */}
                 <div
                   role="img"
-                  aria-label={`Floor ${stat.floor}: ${stat.occupancy_pct}% occupied — ${formatNumber(stat.occupied)} occupied, ${formatNumber(stat.available)} available, ${formatNumber(stat.reserved)} reserved, ${formatNumber(stat.maintenance)} in maintenance, of ${formatNumber(stat.total)} seats`}
+                  aria-label={`Floor ${stat.floor}: ${stat.occupancy_pct}% occupied. ${formatNumber(stat.occupied)} occupied, ${formatNumber(stat.available)} available, ${formatNumber(stat.reserved)} reserved, ${formatNumber(stat.maintenance)} in maintenance, of ${formatNumber(stat.total)} seats`}
                   className="px-1 py-0.5"
                 >
                   <div className="flex items-baseline justify-between gap-3">

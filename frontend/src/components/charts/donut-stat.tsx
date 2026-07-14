@@ -24,6 +24,7 @@ export function DonutStat({ pct, label, size = 140, className }: DonutStatProps)
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
   const clamped = Math.min(100, Math.max(0, pct));
+  const gradientId = React.useId();
 
   const [drawn, setDrawn] = React.useState(false);
   React.useEffect(() => {
@@ -45,6 +46,13 @@ export function DonutStat({ pct, label, size = 140, className }: DonutStatProps)
         className="h-auto max-w-full"
         aria-hidden="true"
       >
+        <defs>
+          {/* Sky→cyan sweep, resolved from the theme tokens at render time. */}
+          <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="var(--accent-solid)" />
+            <stop offset="100%" stopColor="var(--tone-cyan)" />
+          </linearGradient>
+        </defs>
         <circle
           cx={size / 2}
           cy={size / 2}
@@ -53,13 +61,15 @@ export function DonutStat({ pct, label, size = 140, className }: DonutStatProps)
           className="stroke-muted"
           strokeWidth={stroke}
         />
-        {/* Dash-offset transition only — sanctioned donut motion. */}
+        {/* Dash-offset transition only — sanctioned donut motion. The dark
+            drop-shadow gives the ring a neon edge against the near-black. */}
         <circle
           cx={size / 2}
           cy={size / 2}
           r={radius}
           fill="none"
-          className="stroke-accent-solid transition-[stroke-dashoffset] duration-700 ease-out"
+          stroke={`url(#${gradientId})`}
+          className="transition-[stroke-dashoffset] duration-700 ease-out dark:drop-shadow-[0_0_6px_rgba(56,189,248,0.35)]"
           strokeWidth={stroke}
           strokeLinecap="round"
           strokeDasharray={circumference}

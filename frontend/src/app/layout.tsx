@@ -23,17 +23,17 @@ const jetbrainsMono = JetBrains_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Ethara — Seat Allocation & Project Mapping",
+    default: "Ethara · Seat Allocation & Project Mapping",
     template: "%s · Ethara",
   },
   description:
-    "Seat allocation and project mapping console for ~5,000 employees — seats, projects, new joiners, analytics, and an AI assistant.",
+    "Seat allocation and project mapping console for ~5,000 employees: seats, projects, new joiners, analytics, and an AI assistant.",
 };
 
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f6f8fa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0a0f1a" },
+    { media: "(prefers-color-scheme: dark)", color: "#05080f" },
   ],
 };
 

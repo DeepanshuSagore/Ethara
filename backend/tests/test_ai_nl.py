@@ -134,7 +134,7 @@ def test_floor_most_available(client, dataset, groq_key, monkeypatch):
 def test_project_on_floor_yes_and_no(client, dataset, groq_key, monkeypatch):
     mock_groq(monkeypatch, {"intent": "project_on_floor", "project": "Serfy", "floor": 2,
                             "email": None, "name": None, "confidence": 0.9})
-    assert "Yes — 1 person from Project Serfy" in ask(
+    assert "Yes, 1 person from Project Serfy" in ask(
         client, "does anyone from Serfy sit on floor 2?")
     mock_groq(monkeypatch, {"intent": "project_on_floor", "project": "Serfy", "floor": 3,
                             "email": None, "name": None, "confidence": 0.9})

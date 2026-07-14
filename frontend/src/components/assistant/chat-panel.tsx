@@ -7,7 +7,7 @@ import {
   TypingIndicator,
   type ChatMessage,
 } from "@/components/assistant/message-bubble";
-import { SuggestedPrompts } from "@/components/assistant/suggested-prompts";
+import { PromptGrid, SuggestedPrompts } from "@/components/assistant/suggested-prompts";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,22 +16,17 @@ import { Input } from "@/components/ui/input";
 import { errorMessage } from "@/lib/api/client";
 import { useAiQuery } from "@/lib/api/hooks";
 
-const WELCOME: ChatMessage = {
-  id: 1,
-  role: "assistant",
-  content:
-    "Hi! Ask me anything about seats, projects and availability in your own words — Groq understands the question and every answer comes straight from the live directory. Try a suggestion below, or ask things like “which floor has the most free seats?”",
-};
-
 export function ChatPanel() {
   const aiQuery = useAiQuery();
 
-  const [messages, setMessages] = React.useState<ChatMessage[]>([WELCOME]);
+  const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [input, setInput] = React.useState("");
-  const nextId = React.useRef(2);
+  const nextId = React.useRef(1);
   const scrollRef = React.useRef<HTMLDivElement>(null);
 
   const thinking = aiQuery.isPending;
+  // No conversation yet: the log gives way to a composed invitation state.
+  const pristine = messages.length === 0;
 
   React.useEffect(() => {
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -85,24 +80,47 @@ export function ChatPanel() {
       />
 
       <Card className="flex min-h-96 flex-1 flex-col overflow-hidden">
-        {/* role="log" is an implicitly polite live region with chat semantics;
-            tabIndex lets keyboard users scroll the history (inset ring — the
-            card's overflow-hidden would clip an outset one). */}
-        <div
-          ref={scrollRef}
-          role="log"
-          tabIndex={0}
-          aria-label="Conversation"
-          className="flex-1 space-y-4 overflow-y-auto p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-inset"
-        >
-          {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} onRetry={send} />
-          ))}
-          {thinking && <TypingIndicator />}
-        </div>
+        {pristine ? (
+          /* Composed invitation: brand mark, one-line promise, and the four
+             starter questions as real targets — no dead space, no lone bubble. */
+          <div className="flex flex-1 flex-col items-center justify-center gap-6 overflow-y-auto p-6">
+            <div className="animate-rise flex flex-col items-center gap-3 text-center">
+              <span
+                aria-hidden="true"
+                className="flex size-12 items-center justify-center rounded-xl bg-linear-to-br from-accent-solid to-tone-violet text-white shadow-[0_4px_18px_-4px] shadow-accent-solid/50"
+              >
+                <Sparkles className="size-5" />
+              </span>
+              <h2 className="font-display text-xl font-semibold tracking-tight">
+                Ask the directory
+              </h2>
+              <p className="max-w-md text-sm text-muted-foreground">
+                Ask in your own words. Groq turns the question into a live query over seats,
+                projects and people.
+              </p>
+            </div>
+            <PromptGrid onPick={send} disabled={thinking} />
+          </div>
+        ) : (
+          /* role="log" is an implicitly polite live region with chat semantics;
+             tabIndex lets keyboard users scroll the history (inset ring — the
+             card's overflow-hidden would clip an outset one). */
+          <div
+            ref={scrollRef}
+            role="log"
+            tabIndex={0}
+            aria-label="Conversation"
+            className="flex-1 space-y-4 overflow-y-auto p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-inset"
+          >
+            {messages.map((message) => (
+              <MessageBubble key={message.id} message={message} onRetry={send} />
+            ))}
+            {thinking && <TypingIndicator />}
+          </div>
+        )}
 
         <div className="space-y-3 border-t border-border p-4">
-          <SuggestedPrompts onPick={send} disabled={thinking} />
+          {!pristine && <SuggestedPrompts onPick={send} disabled={thinking} />}
           <form
             className="flex gap-2"
             onSubmit={(e) => {

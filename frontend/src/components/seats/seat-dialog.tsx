@@ -113,7 +113,7 @@ export function SeatDialog({ seatId, onOpenChange, onCloseAutoFocus }: SeatDialo
         onSuccess: () =>
           toast({
             title: "Seat released",
-            description: `${seat.seat_code} is available again — ${name} no longer holds it.`,
+            description: `${seat.seat_code} is available again. ${name} no longer holds it.`,
           }),
         onError: (error) =>
           toast({
@@ -263,7 +263,7 @@ export function SeatDialog({ seatId, onOpenChange, onCloseAutoFocus }: SeatDialo
                       <SelectContent>
                         {pendingJoiners.map((joiner) => (
                           <SelectItem key={joiner.id} value={String(joiner.id)}>
-                            {joiner.name} — {projectsById.get(joiner.project_id)?.name}
+                            {joiner.name} · {projectsById.get(joiner.project_id)?.name}
                           </SelectItem>
                         ))}
                       </SelectContent>

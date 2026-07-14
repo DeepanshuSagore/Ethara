@@ -1,3 +1,5 @@
+import { AnimatedTitle } from "@/components/typography/animated-title";
+import { DecodeText } from "@/components/typography/decode-text";
 import { cn } from "@/lib/utils";
 
 interface PageHeaderProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -27,17 +29,32 @@ export function PageHeader({
       <div className="min-w-0 space-y-1.5">
         {eyebrow && (
           <p className="text-eyebrow flex items-center gap-2">
-            <span aria-hidden="true" className="inline-block h-px w-5 bg-accent-solid" />
-            {eyebrow}
+            <span
+              aria-hidden="true"
+              className="animate-hairline inline-block h-px w-5 origin-left bg-accent-solid"
+            />
+            <DecodeText text={eyebrow} />
           </p>
         )}
-        <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">{title}</h1>
-        {description && <p className="max-w-2xl text-sm text-muted-foreground">{description}</p>}
+        <h1 className="font-display text-2xl font-semibold tracking-tight md:text-3xl">
+          <AnimatedTitle text={title} />
+        </h1>
+        {description && (
+          <p
+            className="animate-rise max-w-2xl text-sm text-muted-foreground"
+            style={{ animationDelay: "120ms" }}
+          >
+            {description}
+          </p>
+        )}
       </div>
       {actions && (
         // Wraps instead of overflowing on narrow viewports; badge (span)
         // actions are clamped and truncated so long pills can't blob-wrap.
-        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2 sm:justify-end [&>span]:min-w-0 [&>span]:max-w-full [&>span]:truncate">
+        <div
+          className="animate-rise flex min-w-0 max-w-full flex-wrap items-center gap-2 sm:justify-end [&>span]:min-w-0 [&>span]:max-w-full [&>span]:truncate"
+          style={{ animationDelay: "160ms" }}
+        >
           {actions}
         </div>
       )}
@@ -53,9 +70,9 @@ interface SectionHeadingProps {
 }
 
 /**
- * Blueprint section rule: numbered mono kicker + hairline that carries the
- * eye across the page. Renders a real h2 so long screens keep a scannable
- * outline (cards below should use h3 titles).
+ * Blueprint section rule: numbered mono kicker + hairline that draws itself
+ * across the page on entry. Renders a real h2 so long screens keep a
+ * scannable outline (cards below should use h3 titles).
  */
 export function SectionHeading({ index, title, className }: SectionHeadingProps) {
   return (
@@ -66,7 +83,10 @@ export function SectionHeading({ index, title, className }: SectionHeadingProps)
         </span>
       )}
       <h2 className="text-eyebrow whitespace-nowrap">{title}</h2>
-      <span aria-hidden="true" className="h-px min-w-6 flex-1 bg-border" />
+      <span
+        aria-hidden="true"
+        className="animate-hairline h-px min-w-6 flex-1 origin-left bg-border"
+      />
     </div>
   );
 }

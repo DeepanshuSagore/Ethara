@@ -13,6 +13,31 @@ export interface BarListItem {
   href?: string;
 }
 
+/* Rows cycle through the identity tones (same order as the KPI cards) so
+   sibling bars stop reading as clones. Hue is differentiation, not meaning —
+   the label + swatch dot carry identity, so grayscale still works. Literal
+   class strings keep every tone visible to the Tailwind scanner. */
+const BAR_TONES = [
+  { dot: "bg-tone-sky", fill: "from-tone-sky/60 to-tone-sky", glow: "dark:shadow-tone-sky/35" },
+  {
+    dot: "bg-tone-violet",
+    fill: "from-tone-violet/60 to-tone-violet",
+    glow: "dark:shadow-tone-violet/35",
+  },
+  {
+    dot: "bg-tone-emerald",
+    fill: "from-tone-emerald/60 to-tone-emerald",
+    glow: "dark:shadow-tone-emerald/35",
+  },
+  {
+    dot: "bg-tone-amber",
+    fill: "from-tone-amber/60 to-tone-amber",
+    glow: "dark:shadow-tone-amber/35",
+  },
+  { dot: "bg-tone-rose", fill: "from-tone-rose/60 to-tone-rose", glow: "dark:shadow-tone-rose/35" },
+  { dot: "bg-tone-cyan", fill: "from-tone-cyan/60 to-tone-cyan", glow: "dark:shadow-tone-cyan/35" },
+] as const;
+
 interface BarListProps {
   items: BarListItem[];
   /**
@@ -27,10 +52,10 @@ interface BarListProps {
 }
 
 /**
- * Horizontal single-hue bar list — magnitude comparison across categories.
- * Identity lives in the row label (never color), so one hue is correct.
- * Each row carries one aria-label with the real values; the visuals inside
- * are presentational, so screen readers hear the data exactly once.
+ * Horizontal bar list — magnitude comparison across categories. Each row
+ * cycles an identity tone (dot + gradient fill); the real identity stays in
+ * the row label. Each row carries one aria-label with the real values; the
+ * visuals inside are presentational, so screen readers hear the data once.
  */
 export function BarList({
   items,
@@ -55,24 +80,33 @@ export function BarList({
         const description = item.secondary
           ? `${item.label}: ${valueText} (${item.secondary})`
           : `${item.label}: ${valueText}`;
+        const tone = BAR_TONES[index % BAR_TONES.length];
 
         const row = (
           <>
             <div className="flex items-baseline justify-between gap-3">
-              <span
-                className={cn(
-                  "truncate text-sm font-medium",
-                  item.href && "text-accent-solid"
-                )}
-              >
-                {item.label}
+              <span className="flex min-w-0 items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className={cn("size-2 shrink-0 rounded-full", tone.dot)}
+                />
+                <span
+                  className={cn(
+                    "truncate text-sm font-medium",
+                    item.href && "text-accent-solid"
+                  )}
+                >
+                  {item.label}
+                </span>
               </span>
               <span className="text-metric shrink-0 font-mono text-sm text-muted-foreground">
                 {valueText}
               </span>
             </div>
             {item.secondary && (
-              <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.secondary}</p>
+              <p className="mt-0.5 truncate pl-4 text-xs text-muted-foreground">
+                {item.secondary}
+              </p>
             )}
             <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-muted">
               {/* scaleX (not width) keeps the fill animation on the compositor.
@@ -80,10 +114,14 @@ export function BarList({
                   mount, one row after the next; the transition covers later
                   data refreshes. */}
               <div
-                className="h-full w-full origin-left animate-bar-grow bg-accent-solid transition-transform duration-200 ease-out"
+                className={cn(
+                  "animate-bar-grow h-full w-full origin-left rounded-full bg-linear-to-r transition-transform duration-200 ease-out dark:shadow-[0_0_10px]",
+                  tone.fill,
+                  tone.glow
+                )}
                 style={{
                   transform: `scaleX(${ratio})`,
-                  animationDelay: `${Math.min(index, 8) * 60}ms`,
+                  animationDelay: `${Math.min(index, 8) * 55}ms`,
                 }}
               />
             </div>

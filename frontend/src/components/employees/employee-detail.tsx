@@ -242,7 +242,7 @@ export function EmployeeDetail({ id }: { id: number }) {
                 {employee.status === "PENDING_ALLOCATION"
                   ? "This new joiner is waiting in the allocation queue."
                   : employee.status === "EXITED"
-                    ? "Employee has exited — their seat was released."
+                    ? "Employee has exited. Their seat was released."
                     : "No seat is currently assigned."}
               </p>
             )}

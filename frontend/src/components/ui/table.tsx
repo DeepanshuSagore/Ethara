@@ -43,7 +43,9 @@ const TableRow = React.forwardRef<HTMLTableRowElement, React.HTMLAttributes<HTML
     <tr
       ref={ref}
       className={cn(
-        "border-b border-border transition-colors duration-150 hover:bg-muted/60 data-[state=selected]:bg-accent/60",
+        // Accent-tinted hover (not gray) so rows feel alive against the
+        // muted chrome; selected stays a full step stronger.
+        "border-b border-border transition-colors duration-150 hover:bg-accent/40 data-[state=selected]:bg-accent/70",
         className
       )}
       {...props}

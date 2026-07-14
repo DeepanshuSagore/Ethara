@@ -33,7 +33,9 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
           className={cn("group flex items-center gap-2.5 rounded-lg", focusRing)}
           aria-label="Ethara home"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:scale-105">
+          {/* Gradient brand mark — the one place the accent hues mix, so the
+              chrome carries a signature without recoloring every control. */}
+          <span className="ease-spring flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-accent-solid to-tone-violet text-white shadow-[0_2px_12px_-2px] shadow-accent-solid/50 transition-transform duration-300 group-hover:-rotate-6 group-hover:scale-105">
             <Armchair className="size-4" aria-hidden="true" />
           </span>
           {!collapsed && (
@@ -58,24 +60,24 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
                   aria-current={active ? "page" : undefined}
                   title={collapsed ? item.label : undefined}
                   className={cn(
-                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150",
+                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-[color,background-color,transform] duration-150 ease-out",
                     focusRing,
                     collapsed && "justify-center px-2",
                     active
                       ? "bg-accent text-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-muted/60 hover:text-foreground"
+                      : "text-sidebar-foreground hover:translate-x-0.5 hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
-                  {/* Non-color active cue: 3px accent-solid rail (grows in on
-                      route change). */}
+                  {/* Non-color active cue: 3px gradient rail with a soft glow
+                      (grows in on route change). */}
                   {active && (
                     <span
                       aria-hidden="true"
-                      className="absolute inset-y-2 left-0 w-0.75 animate-rail-in rounded-full bg-accent-solid"
+                      className="animate-rail-in absolute inset-y-2 left-0 w-0.75 rounded-full bg-linear-to-b from-accent-solid to-tone-cyan shadow-[0_0_8px] shadow-accent-solid/60"
                     />
                   )}
                   <item.icon
-                    className="size-4 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                    className="ease-spring size-4 shrink-0 transition-transform duration-300 group-hover:scale-110"
                     aria-hidden="true"
                   />
                   {/* Label stays in the accessibility tree when collapsed. */}

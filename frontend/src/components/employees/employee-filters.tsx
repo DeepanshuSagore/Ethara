@@ -194,7 +194,7 @@ export function ActiveFilterChips({ filters, onChange }: EmployeeFiltersProps) {
           key={chip.key}
           type="button"
           onClick={chip.clear}
-          aria-label={`Remove filter — ${chip.label}`}
+          aria-label={`Remove filter: ${chip.label}`}
           className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium transition-colors duration-150 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           {chip.label}

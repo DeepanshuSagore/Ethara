@@ -82,7 +82,7 @@ def employee_answer(db: Session, employee: Employee) -> str:
     if employee.status == "PENDING_ALLOCATION":
         return (
             f"{employee.name} joined recently and is still waiting for a seat. "
-            f"They are assigned to Project {project.name} — check the New "
+            f"They are assigned to Project {project.name}. Check the New "
             "Joiners queue for suggested seats."
         )
     return f"{employee.name} ({project.name}) has no active seat allocation right now."
@@ -95,7 +95,7 @@ def floor_availability_answer(db: Session, floor: int) -> str:
         .order_by(Seat.id)
     ).all()
     if not available:
-        return f"There are no available seats on Floor {floor} right now — try another floor."
+        return f"There are no available seats on Floor {floor} right now. Try another floor."
     codes = ", ".join(seat.seat_code for seat in available[:8])
     more = ", …" if len(available) > 8 else ""
     return (
@@ -128,15 +128,15 @@ def project_answer(db: Session, project: Project) -> str:
     )
     return (
         f"Project {project.name} has {headcount} members and currently "
-        f"occupies {seated} seats. Its team clusters around one home zone — "
-        "see GET /dashboard/project-utilization for the full breakdown."
+        f"occupies {seated} seats. Its team clusters around one home zone. "
+        "See GET /dashboard/project-utilization for the full breakdown."
     )
 
 
 def utilization_answer(db: Session) -> str:
     s = dashboard_service.summary(db)
     return (
-        f"Overall seat utilization is {s['utilization_pct']}% — "
+        f"Overall seat utilization is {s['utilization_pct']}%: "
         f"{s['occupied']:,} of {s['total_seats']:,} seats are occupied, "
         f"with {s['available']:,} available."
     )

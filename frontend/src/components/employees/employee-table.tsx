@@ -69,9 +69,9 @@ function SortableHead({
         <span className="sr-only">
           {active
             ? sort.dir === "asc"
-              ? "— sorted ascending, activate to sort descending"
-              : "— sorted descending, activate to sort ascending"
-            : "— activate to sort"}
+              ? ", sorted ascending, activate to sort descending"
+              : ", sorted descending, activate to sort ascending"
+            : ", activate to sort"}
         </span>
       </button>
     </TableHead>
@@ -162,7 +162,7 @@ export function EmployeeTable({
               {showProject && (
                 <TableCell>
                   {projectsById.get(employee.project_id)?.name ?? (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">Unassigned</span>
                   )}
                 </TableCell>
               )}
@@ -178,7 +178,7 @@ export function EmployeeTable({
                 ) : seatIndexLoading ? (
                   <Skeleton className="h-4 w-14" />
                 ) : (
-                  <span className="text-muted-foreground">—</span>
+                  <span className="text-muted-foreground">No seat</span>
                 )}
               </TableCell>
             </TableRow>

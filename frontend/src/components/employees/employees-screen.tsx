@@ -98,8 +98,8 @@ export function EmployeesScreen() {
   const rangeEnd = (page - 1) * PAGE_SIZE + pageRows.length;
   // Total is only knowable on the last page (no count endpoint).
   const summary = hasNext
-    ? `Showing ${formatNumber(rangeStart)}–${formatNumber(rangeEnd)} employees`
-    : `Showing ${formatNumber(rangeStart)}–${formatNumber(rangeEnd)} of ${formatNumber(rangeEnd)} matches`;
+    ? `Showing ${formatNumber(rangeStart)}-${formatNumber(rangeEnd)} employees`
+    : `Showing ${formatNumber(rangeStart)}-${formatNumber(rangeEnd)} of ${formatNumber(rangeEnd)} matches`;
 
   const activeFilterCount = countActiveFilters(filters);
   // keepPreviousData shows stale rows during a refetch — surface that.
@@ -144,10 +144,10 @@ export function EmployeesScreen() {
                   title="No employees found"
                   description={
                     page > 1
-                      ? "This page is past the end of the results — they finish on an earlier page."
+                      ? "This page is past the end of the results. They finish on an earlier page."
                       : activeFilterCount > 0
                         ? "Nothing in the directory matches the current search and filters."
-                        : "The directory is empty — add a new joiner to get started."
+                        : "The directory is empty. Add a new joiner to get started."
                   }
                   action={
                     page > 1 ? (

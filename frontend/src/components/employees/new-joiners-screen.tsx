@@ -43,6 +43,18 @@ const REASON_LABELS: Record<SeatSuggestion["reason"], string> = {
 /** Cards per page — also caps concurrent /seats/suggestions requests. */
 const PAGE_SIZE = 10;
 
+/* Same order as ProjectCard's PROJECT_TONES, keyed off project_id, so a
+   joiner's avatar carries their project's hue across screens. Literal class
+   strings keep every tone visible to the Tailwind scanner. */
+const AVATAR_TONES = [
+  "bg-tone-sky-soft text-tone-sky-strong",
+  "bg-tone-violet-soft text-tone-violet-strong",
+  "bg-tone-emerald-soft text-tone-emerald-strong",
+  "bg-tone-amber-soft text-tone-amber-strong",
+  "bg-tone-rose-soft text-tone-rose-strong",
+  "bg-tone-cyan-soft text-tone-cyan-strong",
+] as const;
+
 function JoinerCard({
   joiner,
   projectName,
@@ -83,7 +95,10 @@ function JoinerCard({
     <Card>
       <CardHeader className="flex-row items-center gap-4 space-y-0">
         <span
-          className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-medium text-accent-foreground"
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-lg text-sm font-medium",
+            AVATAR_TONES[joiner.project_id % AVATAR_TONES.length]
+          )}
           aria-hidden="true"
         >
           {initials(joiner.name)}
@@ -98,7 +113,7 @@ function JoinerCard({
             </Link>
           </CardTitle>
           <CardDescription className="truncate">
-            {joiner.role} · {projectName ?? "—"} · joined {formatDate(joiner.joining_date)}
+            {joiner.role} · {projectName ?? "no project"} · joined {formatDate(joiner.joining_date)}
           </CardDescription>
         </div>
         <Badge variant="warning">
@@ -133,7 +148,7 @@ function JoinerCard({
             />
             <div className="space-y-2">
               <p className="text-sm text-destructive-strong">
-                Could not load seat suggestions — {errorMessage(suggestionsQuery.error)}
+                Could not load seat suggestions: {errorMessage(suggestionsQuery.error)}
               </p>
               <Button variant="outline" size="sm" onClick={() => suggestionsQuery.refetch()}>
                 <RotateCcw /> Try again
@@ -143,7 +158,7 @@ function JoinerCard({
         ) : suggestions.length === 0 ? (
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">
-              No seats are available anywhere — release a seat first.
+              No seats are available anywhere. Release a seat first.
             </p>
             <Button asChild variant="outline" size="sm">
               <Link href="/seats">
@@ -185,10 +200,10 @@ function JoinerCard({
                     </span>
                     <span className="sr-only">
                       {isAllocating
-                        ? "— allocating…"
+                        ? ", allocating…"
                         : canManage
-                          ? `— allocate to ${joiner.name}`
-                          : "— switch to the Admin or HR role to allocate"}
+                          ? `, allocate to ${joiner.name}`
+                          : ", switch to the Admin or HR role to allocate"}
                     </span>
                   </button>
                 </li>
@@ -298,7 +313,7 @@ export function NewJoinersScreen() {
             page={safePage}
             pageCount={pageCount}
             onPageChange={setPage}
-            summary={`Showing ${rangeStart}–${rangeEnd} of ${formatNumber(pendingJoiners.length)} pending joiners`}
+            summary={`Showing ${rangeStart}-${rangeEnd} of ${formatNumber(pendingJoiners.length)} pending joiners`}
             className="mt-4"
           />
         </>

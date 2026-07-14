@@ -89,7 +89,7 @@ function ProjectNotFound({ id }: { id: number }) {
           <EmptyState
             icon={FolderX}
             title="This project doesn't exist"
-            description={`No project with id ${id} is in the directory — it may have been removed, or the link is out of date.`}
+            description={`No project with id ${id} is in the directory. It may have been removed, or the link is out of date.`}
             action={<BackToProjects />}
           />
         </CardContent>
@@ -227,7 +227,7 @@ export function ProjectDetail({ id }: { id: number }) {
               icon={FolderX}
               iconWrapClassName="bg-destructive-soft text-destructive-strong"
               title="Could not load the team"
-              description={`Member list failed to fetch — ${errorMessage(membersQuery.error)}`}
+              description={`Member list failed to fetch: ${errorMessage(membersQuery.error)}`}
               action={
                 <Button onClick={() => membersQuery.refetch()}>
                   <RotateCcw /> Try again
@@ -249,7 +249,7 @@ export function ProjectDetail({ id }: { id: number }) {
                 page={safePage}
                 pageCount={pageCount}
                 onPageChange={setPage}
-                summary={`Showing ${rangeStart}–${rangeEnd} of ${formatNumber(members.length)} team members`}
+                summary={`Showing ${rangeStart}-${rangeEnd} of ${formatNumber(members.length)} team members`}
               />
             </>
           )}

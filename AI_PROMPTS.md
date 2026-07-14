@@ -553,6 +553,39 @@ lint/tsc/build green; the 25-check browser pass in §6 Phase 7 exercised every m
 
 ---
 
+## 11. UI Design Pass (design-taste skill)
+
+**Prompt:** "/design-taste-frontend according to the assessment brief" followed by "use the skill
+to make betterments" — a project-local anti-slop design skill (tracked in
+`.claude/skills/design-taste-frontend`, pinned in `skills-lock.json`) applied to the finished app
+in redesign-preserve mode.
+
+**AI output / what changed:** (1) Blueprint elevation: per-KPI identity tones (six solid/-soft/
+-strong triads in `globals.css`), ambient aurora wash, per-theme elevation shadows, spring motion
+easing, gradient brand mark, word-rise page titles and decode-in eyebrows
+(`src/components/typography/`). (2) Copy audit: every user-visible em/en-dash removed across ~30
+frontend strings (meta title, toasts, empty states, aria-labels, "Showing X-Y" ranges) and the
+backend AI answer templates in `ai_nl.py`/`ai_query.py`; bare "—" table placeholders became
+"Unassigned"/"No seat". (3) Betterments: the assistant's pristine screen is now a composed empty
+state (brand mark + 2x2 toned prompt-card grid) instead of a lone welcome bubble over dead space;
+the dashboard utilization donut gained a status-breakdown legend reusing the app-wide status hues;
+new-joiner avatars are keyed to project identity tones.
+
+**Correct:** The skill's hard rules (dash ban, consistency locks, motivated motion, composed
+empty states) translated cleanly to the dashboard context.
+
+**Incorrect / judgment call:** The skill targets marketing pages and bans numbered section
+eyebrows ("01 CAPACITY"); kept them as the app's established Blueprint drafting signature since
+dashboards are explicitly out of the skill's scope. One test pinned the old em-dash phrasing
+("Yes — 1 person") and was updated in lockstep.
+
+**Verification:** `tsc` + `next build` clean; backend pytest 66/66; Playwright screenshots of all
+six screens in light and dark; live end-to-end Groq answer ("Where is Amit Sharma seated?" →
+Floor 1, Zone A, Bay 1, Seat A1-1, Project Indigo) and the pristine→conversation transition
+driven in headless Chrome.
+
+---
+
 ## Appendix — Scaffolding (Phase 0)
 
 **Prompt:** "Scaffold Next.js (App Router, TS, Tailwind, src dir) frontend and a FastAPI backend

@@ -25,7 +25,7 @@ export default function DashboardError({ error, unstable_retry, reset }: ErrorPr
       />
       <ErrorState
         title="This screen failed to render"
-        description="Try again — if it keeps happening, head back to the dashboard."
+        description="Try again. If it keeps happening, head back to the dashboard."
         detail={error.digest ? `Error digest: ${error.digest}` : error.message}
         onRetry={unstable_retry ?? reset}
         backHref="/"

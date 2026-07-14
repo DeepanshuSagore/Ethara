@@ -68,28 +68,62 @@
 
   --scrim: rgb(10 15 26 / 0.55);
   --grid-line: rgb(16 24 40 / 0.032);
+
+  /* Identity tones — one hue per KPI/category so sibling cards stop reading
+     as clones. Triads follow the status pattern: solid / -soft tint / -strong
+     text (≥4.5:1 on -soft and card). */
+  --tone-sky: #0284c7;
+  --tone-sky-soft: #e0f2fe;
+  --tone-sky-strong: #075985;
+  --tone-violet: #7c3aed;
+  --tone-violet-soft: #ede9fe;
+  --tone-violet-strong: #6d28d9;
+  --tone-emerald: #059669;
+  --tone-emerald-soft: #d3f2e3;
+  --tone-emerald-strong: #047857;
+  --tone-amber: #d97706;
+  --tone-amber-soft: #fdf0cd;
+  --tone-amber-strong: #b45309;
+  --tone-rose: #e11d48;
+  --tone-rose-soft: #ffe4e8;
+  --tone-rose-strong: #be123c;
+  --tone-cyan: #0891b2;
+  --tone-cyan-soft: #d3f6fc;
+  --tone-cyan-strong: #0e7490;
+
+  /* Ambient atmosphere behind the blueprint grid — barely-there in light. */
+  --ambient-glow: radial-gradient(1000px 480px at 85% -5%, rgb(3 105 161 / 0.05), transparent 65%),
+    radial-gradient(800px 420px at -5% 105%, rgb(124 58 237 / 0.04), transparent 65%);
+
+  --elev-soft: 0 1px 2px 0 rgb(16 24 40 / 0.05);
+  --elev-card: 0 1px 2px 0 rgb(16 24 40 / 0.04), 0 2px 8px -2px rgb(16 24 40 / 0.06);
+  --elev-raised: 0 2px 4px -1px rgb(16 24 40 / 0.06), 0 8px 20px -6px rgb(16 24 40 / 0.14);
+  --elev-overlay: 0 12px 32px -8px rgb(10 15 26 / 0.28), 0 4px 12px -4px rgb(10 15 26 / 0.16);
 }
 
 .dark {
-  --background: #0a0f1a;
-  --foreground: #e6ebf3;
+  /* Four distinct surface planes (background < sidebar < card < popover) —
+     depth reads from lightness steps, not borders alone. Background sits
+     near-black so cards visibly float and the ambient glow has room. */
+  --background: #05080f;
+  --foreground: #e8edf6;
 
-  --card: #0f1b2d;
-  --card-foreground: #e6ebf3;
+  --card: #0c1526;
+  --card-foreground: #e8edf6;
 
-  --popover: #152238;
-  --popover-foreground: #e6ebf3;
+  --popover: #16233c;
+  --popover-foreground: #e8edf6;
 
-  --primary: #e6ebf3;
-  --primary-foreground: #0a0f1a;
+  --primary: #e8edf6;
+  --primary-foreground: #05080f;
 
-  --secondary: #1a2740;
-  --secondary-foreground: #e6ebf3;
+  --secondary: #17243d;
+  --secondary-foreground: #e8edf6;
 
-  --muted: #1a2740;
-  --muted-foreground: #97a7c2;
+  --muted: #17243d;
+  --muted-foreground: #93a5c4;
 
-  --accent: #12314a;
+  --accent: #0e2d47;
   --accent-foreground: #7dd3fc;
   --accent-solid: #38bdf8;
 
@@ -113,15 +147,52 @@
   --info-soft: #0d2b42;
   --info-strong: #7dd3fc;
 
-  --border: #23324d;
-  --input: #2e3f5e;
+  --border: #1e2d4a;
+  --input: #2b3d60;
   --ring: #38bdf8;
 
-  --sidebar: #0d1626;
-  --sidebar-foreground: #b3c0d6;
+  --sidebar: #070d1a;
+  --sidebar-foreground: #aebcd6;
 
-  --scrim: rgb(4 8 16 / 0.7);
-  --grid-line: rgb(125 211 252 / 0.045);
+  --scrim: rgb(2 5 12 / 0.75);
+  --grid-line: rgb(125 211 252 / 0.05);
+
+  /* Identity tones, dark grades — bright solids, deep tinted -softs,
+     pastel -strongs that hold ≥4.5:1 on both the tint and the card. */
+  --tone-sky: #38bdf8;
+  --tone-sky-soft: #0c2a42;
+  --tone-sky-strong: #7dd3fc;
+  --tone-violet: #a78bfa;
+  --tone-violet-soft: #211840;
+  --tone-violet-strong: #c4b5fd;
+  --tone-emerald: #34d399;
+  --tone-emerald-soft: #0a2b21;
+  --tone-emerald-strong: #6ee7b7;
+  --tone-amber: #fbbf24;
+  --tone-amber-soft: #2f240c;
+  --tone-amber-strong: #fcd34d;
+  --tone-rose: #fb7185;
+  --tone-rose-soft: #35121d;
+  --tone-rose-strong: #fda4af;
+  --tone-cyan: #22d3ee;
+  --tone-cyan-soft: #093243;
+  --tone-cyan-strong: #67e8f9;
+
+  /* Aurora wash: sky top-right, violet bottom-left, cyan floor — gives the
+     gutters temperature variation so screens stop looking identical. */
+  --ambient-glow: radial-gradient(1100px 520px at 82% -8%, rgb(56 189 248 / 0.09), transparent 62%),
+    radial-gradient(900px 480px at -8% 108%, rgb(167 139 250 / 0.07), transparent 62%),
+    radial-gradient(700px 380px at 50% 120%, rgb(34 211 238 / 0.04), transparent 60%);
+
+  /* Dark shadows: true black depth + a 1px top sheen so card edges catch
+     light; -raised adds an accent halo for hover states. */
+  --elev-soft: 0 1px 2px 0 rgb(0 0 0 / 0.4);
+  --elev-card: inset 0 1px 0 0 rgb(148 197 253 / 0.05), 0 1px 2px 0 rgb(0 0 0 / 0.35),
+    0 4px 16px -4px rgb(0 0 0 / 0.45);
+  --elev-raised: inset 0 1px 0 0 rgb(148 197 253 / 0.07), 0 4px 8px -2px rgb(0 0 0 / 0.5),
+    0 12px 32px -8px rgb(0 0 0 / 0.65), 0 0 28px -8px rgb(56 189 248 / 0.18);
+  --elev-overlay: inset 0 1px 0 0 rgb(148 197 253 / 0.07), 0 16px 48px -12px rgb(0 0 0 / 0.75),
+    0 6px 16px -6px rgb(0 0 0 / 0.5);
 }
 
 @theme inline {
@@ -163,6 +234,25 @@
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-scrim: var(--scrim);
 
+  --color-tone-sky: var(--tone-sky);
+  --color-tone-sky-soft: var(--tone-sky-soft);
+  --color-tone-sky-strong: var(--tone-sky-strong);
+  --color-tone-violet: var(--tone-violet);
+  --color-tone-violet-soft: var(--tone-violet-soft);
+  --color-tone-violet-strong: var(--tone-violet-strong);
+  --color-tone-emerald: var(--tone-emerald);
+  --color-tone-emerald-soft: var(--tone-emerald-soft);
+  --color-tone-emerald-strong: var(--tone-emerald-strong);
+  --color-tone-amber: var(--tone-amber);
+  --color-tone-amber-soft: var(--tone-amber-soft);
+  --color-tone-amber-strong: var(--tone-amber-strong);
+  --color-tone-rose: var(--tone-rose);
+  --color-tone-rose-soft: var(--tone-rose-soft);
+  --color-tone-rose-strong: var(--tone-rose-strong);
+  --color-tone-cyan: var(--tone-cyan);
+  --color-tone-cyan-soft: var(--tone-cyan-soft);
+  --color-tone-cyan-strong: var(--tone-cyan-strong);
+
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-space-grotesk), var(--font-inter), ui-sans-serif, sans-serif;
   --font-mono: var(--font-jetbrains-mono), ui-monospace, "SF Mono", monospace;
@@ -172,28 +262,35 @@
   --radius-xl: 0.75rem;
   --radius-2xl: 1rem;
 
-  --shadow-soft: 0 1px 2px 0 rgb(16 24 40 / 0.05);
-  --shadow-card: 0 1px 2px 0 rgb(16 24 40 / 0.04), 0 2px 8px -2px rgb(16 24 40 / 0.06);
-  --shadow-raised: 0 2px 4px -1px rgb(16 24 40 / 0.06), 0 8px 20px -6px rgb(16 24 40 / 0.14);
-  --shadow-overlay: 0 12px 32px -8px rgb(10 15 26 / 0.28), 0 4px 12px -4px rgb(10 15 26 / 0.16);
+  /* Shadows resolve per theme (:root / .dark --elev-*) so dark mode gets
+     true-black depth, a top sheen and accent halos without component edits. */
+  --shadow-soft: var(--elev-soft);
+  --shadow-card: var(--elev-card);
+  --shadow-raised: var(--elev-raised);
+  --shadow-overlay: var(--elev-overlay);
 
-  /* Motion scale — enter ease-out, exit ease-in, exits faster than enters. */
+  /* Motion scale — enter ease-out, exit ease-in, exits faster than enters.
+     Spring is for small transform pops only (icons, chips), never layout. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
 
-  --animate-in: fade-in 180ms var(--ease-out);
-  --animate-fade-out: fade-out 120ms var(--ease-in) forwards;
-  --animate-overlay-in: overlay-in 180ms var(--ease-out);
-  --animate-dialog-in: dialog-in 200ms var(--ease-out);
-  --animate-dialog-out: dialog-out 140ms var(--ease-in) forwards;
-  --animate-toast-in: toast-in 220ms var(--ease-out);
-  --animate-toast-out: fade-out 140ms var(--ease-in) forwards;
-  --animate-page-enter: page-enter 320ms var(--ease-out) both;
-  --animate-rise: rise-in 400ms var(--ease-out) both;
-  --animate-bar-grow: bar-grow 600ms var(--ease-out) backwards;
-  --animate-bar-grow-y: bar-grow-y 600ms var(--ease-out) backwards;
+  --animate-in: fade-in 160ms var(--ease-out);
+  --animate-fade-out: fade-out 110ms var(--ease-in) forwards;
+  --animate-overlay-in: overlay-in 160ms var(--ease-out);
+  --animate-dialog-in: dialog-in 180ms var(--ease-out);
+  --animate-dialog-out: dialog-out 130ms var(--ease-in) forwards;
+  --animate-toast-in: toast-in 200ms var(--ease-out);
+  --animate-toast-out: fade-out 130ms var(--ease-in) forwards;
+  --animate-page-enter: page-enter 280ms var(--ease-out) both;
+  --animate-rise: rise-in 360ms var(--ease-out) both;
+  --animate-bar-grow: bar-grow 550ms var(--ease-out) backwards;
+  --animate-bar-grow-y: bar-grow-y 550ms var(--ease-out) backwards;
   --animate-rail-in: rail-in 200ms var(--ease-out);
   --animate-shimmer: shimmer 1.6s linear infinite;
+  --animate-word-rise: word-rise 550ms var(--ease-out) both;
+  --animate-hairline: hairline-sweep 650ms var(--ease-out) both;
+  --animate-pulse-dot: pulse-dot 2.2s var(--ease-out) infinite;
 
   @keyframes fade-in {
     from {
@@ -251,14 +348,17 @@
       transform: translateY(0);
     }
   }
+  /* Camera-focus entrance: rise + a 3px blur that resolves as the page lands. */
   @keyframes page-enter {
     from {
       opacity: 0;
-      transform: translateY(6px);
+      transform: translateY(8px);
+      filter: blur(3px);
     }
     to {
       opacity: 1;
       transform: translateY(0);
+      filter: blur(0);
     }
   }
   @keyframes rise-in {
@@ -299,6 +399,39 @@
       transform: translateX(100%);
     }
   }
+  /* Word-mask reveal — pairs with an overflow-hidden wrapper per word. */
+  @keyframes word-rise {
+    from {
+      opacity: 0;
+      transform: translateY(110%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  /* Section rules draw themselves across the page (origin-left scaleX). */
+  @keyframes hairline-sweep {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+  /* Sonar ring for "live" dots — color comes from the element's own
+     currentColor so one keyframe serves every status hue. */
+  @keyframes pulse-dot {
+    0% {
+      box-shadow: 0 0 0 0 color-mix(in srgb, currentcolor 45%, transparent);
+    }
+    70% {
+      box-shadow: 0 0 0 5px transparent;
+    }
+    100% {
+      box-shadow: 0 0 0 0 transparent;
+    }
+  }
 }
 
 /* Metric numbers (dashboard stats, seat counts) align in columns */
@@ -319,48 +452,48 @@
   color: var(--muted-foreground);
 }
 
-/* Staggered rise for grids/lists: each direct child fades up 45ms after the
+/* Staggered rise for grids/lists: each direct child fades up 40ms after the
    previous one (capped past 12 so long lists don't crawl). Fill-mode both
    keeps late rows hidden until their turn. */
 @utility stagger-children {
   & > * {
-    animation: rise-in 400ms var(--ease-out) both;
+    animation: rise-in 360ms var(--ease-out) both;
   }
   & > *:nth-child(2) {
-    animation-delay: 45ms;
+    animation-delay: 40ms;
   }
   & > *:nth-child(3) {
-    animation-delay: 90ms;
+    animation-delay: 80ms;
   }
   & > *:nth-child(4) {
-    animation-delay: 135ms;
+    animation-delay: 120ms;
   }
   & > *:nth-child(5) {
-    animation-delay: 180ms;
+    animation-delay: 160ms;
   }
   & > *:nth-child(6) {
-    animation-delay: 225ms;
+    animation-delay: 200ms;
   }
   & > *:nth-child(7) {
-    animation-delay: 270ms;
+    animation-delay: 240ms;
   }
   & > *:nth-child(8) {
-    animation-delay: 315ms;
+    animation-delay: 280ms;
   }
   & > *:nth-child(9) {
-    animation-delay: 360ms;
+    animation-delay: 320ms;
   }
   & > *:nth-child(10) {
-    animation-delay: 405ms;
+    animation-delay: 360ms;
   }
   & > *:nth-child(11) {
-    animation-delay: 450ms;
+    animation-delay: 400ms;
   }
   & > *:nth-child(12) {
-    animation-delay: 495ms;
+    animation-delay: 440ms;
   }
   & > *:nth-child(n + 13) {
-    animation-delay: 540ms;
+    animation-delay: 480ms;
   }
 }
 
@@ -370,6 +503,25 @@
   background-image: linear-gradient(var(--grid-line) 1px, transparent 1px),
     linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
   background-size: 32px 32px;
+}
+
+/* Ambient aurora wash — fixed-position overlay behind the scroll container
+   (see AppShell), so the glow holds steady while content scrolls past. */
+@utility bg-ambient {
+  background-image: var(--ambient-glow);
+}
+
+/* Shared hover treatment for interactive cards: a 2px float with the raised
+   shadow (accent halo in dark). Transform + shadow only — compositor-safe. */
+@utility hover-lift {
+  transition:
+    transform 200ms var(--ease-out),
+    box-shadow 200ms var(--ease-out),
+    border-color 200ms var(--ease-out);
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elev-raised);
+  }
 }
 
 @layer base {
@@ -401,6 +553,25 @@
 
   ::selection {
     background: color-mix(in srgb, var(--accent-solid) 25%, transparent);
+  }
+
+  /* Slim, theme-aware scrollbars — the stock chrome bar reads as unstyled. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+    background-color: color-mix(in srgb, var(--muted-foreground) 35%, transparent);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
   }
 
   /* Collapse animations & transitions for users who opt out of motion

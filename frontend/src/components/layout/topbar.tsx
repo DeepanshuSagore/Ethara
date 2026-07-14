@@ -53,7 +53,9 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
   };
 
   return (
-    <header className="flex h-16 shrink-0 items-center gap-2 border-b border-border bg-background px-4 sm:gap-3 sm:px-6">
+    // Frosted glass over the ambient wash — translucent bg + blur gives the
+    // chrome depth without a second surface color.
+    <header className="relative flex h-16 shrink-0 items-center gap-2 border-b border-border/70 bg-background/70 px-4 backdrop-blur-xl sm:gap-3 sm:px-6">
       <Button
         variant="ghost"
         size="icon"

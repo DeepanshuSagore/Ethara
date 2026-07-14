@@ -36,7 +36,7 @@ MAX_QUERY_CHARS = 500
 MIN_CONFIDENCE = 0.5
 
 REFUSAL = (
-    "I answer questions about Ethara seats, employees and projects — try asking "
+    "I answer questions about Ethara seats, employees and projects. Try asking "
     "where someone sits, which seats are free on a floor, or how full a project "
     "or the office is."
 )
@@ -172,7 +172,7 @@ def _employee_seat_answer(db: Session, parsed: dict) -> str | None:
     who = " ".join((email or name).split())[:80]
     if not who:
         return None
-    return f'I couldn\'t find "{who}" in the directory — double-check the name or email.'
+    return f'I couldn\'t find "{who}" in the directory. Double-check the name or email.'
 
 
 def _floor_most_available_answer(db: Session) -> str:
@@ -187,7 +187,7 @@ def _floor_most_available_answer(db: Session) -> str:
     floor, free = rows[0]
     rest = ", ".join(f"Floor {f} has {c}" for f, c in rows[1:3])
     tail = f" Next best: {rest}." if rest else ""
-    return f"Floor {floor} has the most available seats right now — {free} free.{tail}"
+    return f"Floor {floor} has the most available seats right now: {free} free.{tail}"
 
 
 def _project_on_floor_answer(db: Session, project: Project, floor: int) -> str:
@@ -204,7 +204,7 @@ def _project_on_floor_answer(db: Session, project: Project, floor: int) -> str:
     if seated_on_floor:
         noun, verb = ("person", "sits") if seated_on_floor == 1 else ("people", "sit")
         return (
-            f"Yes — {seated_on_floor} {noun} from Project {project.name} "
+            f"Yes, {seated_on_floor} {noun} from Project {project.name} "
             f"currently {verb} on Floor {floor}."
         )
     home = db.execute(
@@ -218,9 +218,9 @@ def _project_on_floor_answer(db: Session, project: Project, floor: int) -> str:
         .order_by(func.count().desc(), Seat.floor)
     ).first()
     if home is None:
-        return f"No — Project {project.name} has no one seated anywhere right now."
+        return f"No, Project {project.name} has no one seated anywhere right now."
     return (
-        f"No — nobody from Project {project.name} sits on Floor {floor}. "
+        f"No, nobody from Project {project.name} sits on Floor {floor}. "
         f"The team mostly sits on Floor {home.floor} ({home.seated} seated there)."
     )
 

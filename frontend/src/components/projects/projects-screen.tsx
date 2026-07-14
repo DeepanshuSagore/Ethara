@@ -53,7 +53,7 @@ export function ProjectsScreen() {
             <EmptyState
               icon={FolderKanban}
               title="No projects yet"
-              description="Projects are created in the Ethara directory, not from this screen. As soon as one exists it appears here with live headcount, allocated seats and team location — refresh to check again."
+              description="Projects are created in the Ethara directory, not from this screen. As soon as one exists it appears here with live headcount, allocated seats and team location. Refresh to check again."
               action={
                 <Button onClick={() => utilizationQuery.refetch()}>
                   <RefreshCw /> Refresh projects

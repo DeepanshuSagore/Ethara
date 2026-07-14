@@ -33,7 +33,7 @@ export function RoleSwitcher() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">
-        <DropdownMenuLabel>Demo Mode — switch role</DropdownMenuLabel>
+        <DropdownMenuLabel>Demo Mode: switch role</DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuRadioGroup value={role} onValueChange={(v) => setRole(v as Role)}>
           {ROLES.map((r) => (

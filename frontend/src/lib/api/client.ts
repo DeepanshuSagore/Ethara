@@ -70,7 +70,7 @@ export async function apiFetch<T>(
   } catch (cause) {
     if (cause instanceof DOMException && cause.name === "AbortError") throw cause;
     throw new ApiError(
-      `Could not reach the Ethara API at ${API_BASE_URL} — is the backend running?`,
+      `Could not reach the Ethara API at ${API_BASE_URL}. Is the backend running?`,
       0
     );
   }

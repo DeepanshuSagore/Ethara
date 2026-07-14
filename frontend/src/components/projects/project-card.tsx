@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CircleCheck, CirclePause, Flag, MapPin, UserRound, type LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import type { ProjectStatus, ProjectUtilization } from "@/types";
 
 /* Status is never color-alone: each badge pairs its tint with a label and a
@@ -18,18 +18,30 @@ const STATUS_BADGES: Record<
   COMPLETED: { label: "Completed", variant: "info", icon: Flag },
 };
 
+/* Identity tone per project, keyed off its id so the hue is stable across
+   screens and reorderings. Differentiation only — status stays in the badge. */
+const PROJECT_TONES = [
+  { fill: "from-tone-sky/60 to-tone-sky", glow: "dark:shadow-tone-sky/35" },
+  { fill: "from-tone-violet/60 to-tone-violet", glow: "dark:shadow-tone-violet/35" },
+  { fill: "from-tone-emerald/60 to-tone-emerald", glow: "dark:shadow-tone-emerald/35" },
+  { fill: "from-tone-amber/60 to-tone-amber", glow: "dark:shadow-tone-amber/35" },
+  { fill: "from-tone-rose/60 to-tone-rose", glow: "dark:shadow-tone-rose/35" },
+  { fill: "from-tone-cyan/60 to-tone-cyan", glow: "dark:shadow-tone-cyan/35" },
+] as const;
+
 export function ProjectCard({ stats }: { stats: ProjectUtilization }) {
   const { project, headcount, seated, home_zone: homeZone } = stats;
   const seatedPct = headcount === 0 ? 0 : Math.round((seated / headcount) * 100);
   const status = STATUS_BADGES[project.status];
   const StatusIcon = status.icon;
+  const tone = PROJECT_TONES[project.id % PROJECT_TONES.length];
 
   return (
     <Link
       href={`/projects/${project.id}`}
       className="group block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card className="h-full transition-[box-shadow,border-color,transform] duration-200 group-hover:-translate-y-0.5 group-hover:border-accent-solid/30 group-hover:shadow-raised">
+      <Card className="hover-lift h-full group-hover:border-accent-solid/30">
         <CardHeader className="flex-row items-start justify-between gap-2 space-y-0">
           <div className="min-w-0 space-y-1">
             <CardTitle
@@ -89,7 +101,11 @@ export function ProjectCard({ stats }: { stats: ProjectUtilization }) {
             >
               {/* scaleX + bar-grow: compositor-friendly sweep to the live value. */}
               <div
-                className="h-full w-full origin-left animate-bar-grow rounded-full bg-accent-solid transition-transform duration-200 ease-out"
+                className={cn(
+                  "animate-bar-grow h-full w-full origin-left rounded-full bg-linear-to-r transition-transform duration-200 ease-out dark:shadow-[0_0_10px]",
+                  tone.fill,
+                  tone.glow
+                )}
                 style={{ transform: `scaleX(${seatedPct / 100})` }}
               />
             </div>

@@ -75,45 +75,52 @@ export function DashboardScreen() {
   const seatsPerFloor = floorUtilization.data[0]?.total ?? 0;
   const queueFailed = pendingJoiners.isError || projects.isError;
 
-  /* Raw numbers, not formatted strings — StatCard counts them up on load. */
+  /* Raw numbers, not formatted strings — StatCard counts them up on load.
+     Each KPI carries its own tone so the row reads as six distinct signals. */
   const stats = [
     {
       label: "Total Employees",
       value: metrics.total_employees,
       icon: Users,
       hint: `across ${projectUtilization.data.length} projects`,
+      tone: "sky",
     },
     {
       label: "Total Seats",
       value: metrics.total_seats,
       icon: Armchair,
       hint: `${floorUtilization.data.length} floors · ${floorUtilization.data.length * 2} zones`,
+      tone: "violet",
     },
     {
       label: "Occupied",
       value: metrics.occupied,
       icon: DoorOpen,
       hint: `${metrics.utilization_pct}% utilization`,
+      tone: "cyan",
     },
     {
       label: "Available",
       value: metrics.available,
       icon: CircleCheck,
       hint: "ready to allocate",
+      tone: "emerald",
     },
     {
       label: "Reserved / Maintenance",
       value: metrics.reserved + metrics.maintenance,
       icon: Lock,
       hint: "blocked from allocation",
+      tone: "amber",
     },
     {
       label: "Pending Allocation",
       value: metrics.pending_joiners,
       icon: UserPlus,
       hint: "new joiners awaiting seats",
+      tone: "rose",
     },
-  ];
+  ] as const;
 
   return (
     <>
@@ -123,7 +130,12 @@ export function DashboardScreen() {
         description="Live overview of seats, occupancy and allocation across Ethara."
         actions={
           <Badge variant="outline" className="whitespace-nowrap">
-            <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
+            {/* Sonar pulse — currentColor drives the ring, so text-success
+                colors dot and halo together. */}
+            <span
+              className="animate-pulse-dot size-1.5 shrink-0 rounded-full bg-success text-success"
+              aria-hidden="true"
+            />
             <span className="sr-only">Live</span>
             Live API
             <span className="hidden text-muted-foreground md:inline">
@@ -134,7 +146,7 @@ export function DashboardScreen() {
       />
 
       <SectionHeading index="01" title="Capacity" />
-      <div className="stagger-children grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <div className="stagger-children grid grid-cols-1 gap-3 min-[420px]:grid-cols-2 sm:gap-4 xl:grid-cols-3 2xl:grid-cols-6">
         {stats.map((stat) => (
           <StatCard key={stat.label} {...stat} />
         ))}
@@ -166,8 +178,33 @@ export function DashboardScreen() {
               <CardTitle>Seat utilization</CardTitle>
               <CardDescription>Occupied share of all seats</CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center justify-center">
-              <DonutStat pct={metrics.utilization_pct} label="occupied" />
+            {/* Donut + status breakdown: same hues as the seat map legend and
+                the analytics floor bars, so status reads identically app-wide. */}
+            <CardContent className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+              <DonutStat pct={metrics.utilization_pct} label="occupied" size={124} />
+              <dl className="min-w-40 space-y-2.5">
+                {(
+                  [
+                    { label: "Occupied", key: "occupied", dot: "bg-accent-solid" },
+                    { label: "Available", key: "available", dot: "bg-success" },
+                    { label: "Reserved", key: "reserved", dot: "bg-warning" },
+                    { label: "Maintenance", key: "maintenance", dot: "bg-muted-foreground" },
+                  ] as const
+                ).map(({ label, key, dot }) => (
+                  <div key={key} className="flex items-center gap-2">
+                    <dt className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span
+                        aria-hidden="true"
+                        className={cn("size-2 shrink-0 rounded-full", dot)}
+                      />
+                      {label}
+                    </dt>
+                    <dd className="text-metric ml-auto font-mono text-sm font-medium">
+                      {formatNumber(metrics[key])}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </CardContent>
           </Card>
 
@@ -216,7 +253,7 @@ export function DashboardScreen() {
               ) : joiners.length === 0 ? (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CircleCheck className="size-4 shrink-0 text-success" aria-hidden="true" />
-                  Queue is clear — every new joiner has a seat.
+                  Queue is clear. Every new joiner has a seat.
                 </p>
               ) : (
                 <ul className="-mx-2 space-y-1">

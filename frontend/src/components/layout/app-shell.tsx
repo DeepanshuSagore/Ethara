@@ -101,10 +101,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </Dialog>
 
       {/* Main column */}
-      <div className="flex h-full min-w-0 flex-1 flex-col">
+      <div className="relative flex h-full min-w-0 flex-1 flex-col">
+        {/* Ambient aurora — viewport-fixed color wash behind the scroll
+            container, so the glow holds still while content moves past. */}
+        <div aria-hidden="true" className="bg-ambient pointer-events-none absolute inset-0" />
         <Topbar onOpenMobileNav={() => setMobileOpen(true)} />
-        <main id="main-content" className="flex-1 overflow-y-auto bg-blueprint">
-          <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col px-4 py-6 sm:px-6 lg:px-8">
+        <main id="main-content" className="bg-blueprint relative flex-1 overflow-y-auto">
+          <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col px-4 pt-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:px-6 lg:px-8">
             {children}
           </div>
         </main>

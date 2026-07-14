@@ -31,7 +31,9 @@ export function MessageBubble({ message, onRetry }: MessageBubbleProps) {
             "flex size-8 shrink-0 items-center justify-center rounded-lg",
             isError
               ? "bg-destructive-soft text-destructive-strong"
-              : "bg-accent text-accent-foreground"
+              : // Same gradient signature as the sidebar brand mark — the AI
+                // speaks with the product's voice.
+                "bg-linear-to-br from-accent-solid to-tone-violet text-white shadow-[0_2px_10px_-2px] shadow-accent-solid/40"
           )}
         >
           {isError ? <AlertTriangle className="size-4" /> : <Sparkles className="size-4" />}
@@ -70,7 +72,7 @@ export function TypingIndicator() {
     <div role="status" className="flex animate-in gap-3">
       <span
         aria-hidden="true"
-        className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-accent text-accent-foreground"
+        className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br from-accent-solid to-tone-violet text-white shadow-[0_2px_10px_-2px] shadow-accent-solid/40"
       >
         <Sparkles className="size-4" />
       </span>
