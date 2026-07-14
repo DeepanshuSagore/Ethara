@@ -75,32 +75,3 @@ export function PromptGrid({ onPick, disabled }: SuggestedPromptsProps) {
   );
 }
 
-/**
- * Compact pill strip above the input — shown once a conversation exists, so
- * follow-up ideas stay one tap away without repeating the pristine grid.
- */
-export function SuggestedPrompts({ onPick, disabled }: SuggestedPromptsProps) {
-  return (
-    /* p-1/-m-1 gives the focus ring room inside the horizontal scroller. */
-    <div
-      role="group"
-      aria-label="Suggested prompts"
-      className="-m-1 flex gap-2 overflow-x-auto p-1 sm:flex-wrap"
-    >
-      {SUGGESTED_PROMPTS.map(({ text }) => (
-        <button
-          key={text}
-          type="button"
-          aria-disabled={disabled ? true : undefined}
-          onClick={() => {
-            if (disabled) return;
-            onPick(text);
-          }}
-          className="shrink-0 cursor-pointer whitespace-nowrap rounded-full border border-border bg-muted/40 px-3.5 py-1.5 text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:pointer-events-none aria-disabled:opacity-50"
-        >
-          {text}
-        </button>
-      ))}
-    </div>
-  );
-}

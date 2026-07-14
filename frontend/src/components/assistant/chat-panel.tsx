@@ -7,7 +7,7 @@ import {
   TypingIndicator,
   type ChatMessage,
 } from "@/components/assistant/message-bubble";
-import { PromptGrid, SuggestedPrompts } from "@/components/assistant/suggested-prompts";
+import { PromptGrid } from "@/components/assistant/suggested-prompts";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -126,8 +126,10 @@ export function ChatPanel() {
           </div>
         )}
 
-        <div className="space-y-3 border-t border-border p-4">
-          {!pristine && <SuggestedPrompts onPick={send} disabled={thinking} />}
+        {/* The starter prompts live only in the pristine empty state — once a
+            conversation exists, a wrapping pill strip here just reads as
+            clutter between the log and the composer. */}
+        <div className="border-t border-border p-4">
           <form
             className="flex gap-2"
             onSubmit={(e) => {
