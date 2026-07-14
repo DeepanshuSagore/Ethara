@@ -274,7 +274,11 @@ export function SeatDialog({ seat: seatProp, onOpenChange, onCloseAutoFocus }: S
                       <SelectTrigger aria-label="Select new joiner">
                         <SelectValue placeholder="Select new joiner" />
                       </SelectTrigger>
-                      <SelectContent>
+                      {/* Pinned below the trigger: with collisions on, Radix
+                          flips this long list above the dialog (more room),
+                          which reads as detached. The available-height cap
+                          shrinks it to the space under the trigger instead. */}
+                      <SelectContent side="bottom" avoidCollisions={false}>
                         {pendingJoiners.map((joiner) => (
                           <SelectItem key={joiner.id} value={String(joiner.id)}>
                             {joiner.name} · {projectsById.get(joiner.project_id)?.name}
