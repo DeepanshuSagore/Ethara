@@ -203,3 +203,26 @@ curl pass matched expectations. Design notes worth recording:
   restore the key with a normal PUT and a final deploy.
 - **Lesson:** a fallback drill needs a *discriminating* probe (a query only the primary path
   can answer), otherwise "it still answers" proves nothing about which path answered.
+
+### Seat dialog jitter — three sequential layout swaps re-centered the panel
+- **Symptom:** clicking a seat opened the dialog with a visible jitter before the info
+  settled: a skeleton flash, then the seat header, then (for occupied seats) the occupant
+  panel replacing a one-line "Refreshing the occupant register…" fallback. Each swap changed
+  the content height, and a `translate(-50%,-50%)`-centered dialog re-centers on every
+  height change, which reads as jumping.
+- **Cause:** the dialog fetched `GET /seats/{id}` from scratch even though the map already
+  held that exact `Seat` object, and `useSeatIndex()` (all ACTIVE allocations + the full
+  5,600-seat inventory, a different cache key than the map's `?floor=` query) only started
+  fetching once the dialog first opened.
+- **Fix:** pass the clicked `Seat` object into the dialog and use it as TanStack
+  `placeholderData` for the detail query (real content on first paint; the fetch still
+  refreshes status), warm `useSeatIndex()` on seat-map mount so occupants resolve before any
+  click, and keep the last seat rendered through the close animation so the exit can't flash
+  the skeleton. Note: v5 typing wants the value form (`placeholderData: seatProp ??
+  undefined`), not a thunk.
+- **Verified:** headless-Chrome probe sampling `[role=dialog].offsetHeight` every 60ms for
+  1.4s after the click: occupied seat h=298px, available seat h=248px, both with seat code +
+  occupant panel present on the first sample and **0px height drift**.
+- **Lesson:** when a dialog is opened from a list that already holds the row, seed the
+  detail query with that row — a centered overlay makes every later height change a visible
+  jump, so the first paint must be the final layout.

@@ -35,19 +35,26 @@ import {
 } from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
 import { formatDate } from "@/lib/utils";
+import type { Seat } from "@/types";
 
 interface SeatDialogProps {
-  seatId: number | null;
+  /** The clicked seat, straight from the map's already-fetched floor list —
+      rendered immediately as placeholder while the detail query refreshes,
+      so the dialog opens at its final size (no skeleton flash, no re-center
+      jump when the fetch lands). */
+  seat: Seat | null;
   onOpenChange: (open: boolean) => void;
   /** Controlled dialogs have no Radix trigger to restore focus to on close —
       the seat map uses this to send focus back to the opening seat cell. */
   onCloseAutoFocus?: (event: Event) => void;
 }
 
-export function SeatDialog({ seatId, onOpenChange, onCloseAutoFocus }: SeatDialogProps) {
+export function SeatDialog({ seat: seatProp, onOpenChange, onCloseAutoFocus }: SeatDialogProps) {
   const { role } = useRole();
   const { toast } = useToast();
   const [selectedJoiner, setSelectedJoiner] = React.useState("");
+
+  const seatId = seatProp?.id ?? null;
 
   // A joiner picked but never allocated must not carry over to another seat —
   // reset during render when the target seat changes (React's recommended
@@ -60,12 +67,19 @@ export function SeatDialog({ seatId, onOpenChange, onCloseAutoFocus }: SeatDialo
 
   // Fetch the seat itself so the open dialog reflects allocate/release
   // immediately (mutations invalidate this query along with everything else).
+  // The list object stands in while the fetch is in flight.
   const seatQuery = useQuery({
     queryKey: ["seats", "detail", seatId],
     queryFn: ({ signal }) => getSeat(seatId as number, signal),
     enabled: seatId !== null,
+    placeholderData: seatProp ?? undefined,
   });
-  const seat = seatQuery.data;
+
+  // Keep the last real seat on screen through the close animation — without
+  // this the content snaps back to the loading skeleton while fading out.
+  const lastSeatRef = React.useRef<Seat | null>(null);
+  if (seatQuery.data) lastSeatRef.current = seatQuery.data;
+  const seat = seatQuery.data ?? (seatId === null ? lastSeatRef.current : undefined);
 
   const { occupantBySeat } = useSeatIndex();
   const occupant = seat ? occupantBySeat.get(seat.id) : undefined;

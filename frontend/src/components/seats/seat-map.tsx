@@ -14,7 +14,7 @@ import { SeatDialog } from "@/components/seats/seat-dialog";
 import { SeatLegend } from "@/components/seats/seat-legend";
 import { SeatMapSkeleton } from "@/components/seats/seat-map-skeleton";
 import { errorMessage } from "@/lib/api/client";
-import { useSeats } from "@/lib/api/hooks";
+import { useSeatIndex, useSeats } from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
 import { FLOORS, ZONES } from "@/lib/constants";
 import type { Seat, SeatStatus } from "@/types";
@@ -29,11 +29,16 @@ export function SeatMap() {
     : FLOORS[0];
 
   const [floor, setFloor] = React.useState(initialFloor);
-  const [selectedSeatId, setSelectedSeatId] = React.useState<number | null>(null);
-  // Survives the dialog's close (selectedSeatId is null by then) so focus can
+  const [selectedSeat, setSelectedSeat] = React.useState<Seat | null>(null);
+  // Survives the dialog's close (selectedSeat is null by then) so focus can
   // return to the cell that opened it.
   const lastSeatIdRef = React.useRef<number | null>(null);
   const canManage = role === "Admin" || role === "HR";
+
+  // Warm the occupant register (allocations + full seat inventory) while the
+  // user is still looking at the map, so the seat dialog can name occupants
+  // on first paint instead of resolving them after it opens.
+  useSeatIndex();
 
   // One floor at a time, filtered server-side (?floor=) — each floor holds
   // 1,120 of the 5,600 seats, so we never pull the whole building at once.
@@ -155,10 +160,10 @@ export function SeatMap() {
                             key={`${floor}-${zone}`}
                             zone={zone}
                             bays={sortedBays}
-                            selectedSeatId={selectedSeatId}
+                            selectedSeatId={selectedSeat?.id ?? null}
                             onSelect={(seat) => {
                               lastSeatIdRef.current = seat.id;
-                              setSelectedSeatId(seat.id);
+                              setSelectedSeat(seat);
                             }}
                           />
                         )}
@@ -173,9 +178,9 @@ export function SeatMap() {
       </Tabs>
 
       <SeatDialog
-        seatId={selectedSeatId}
+        seat={selectedSeat}
         onOpenChange={(open) => {
-          if (!open) setSelectedSeatId(null);
+          if (!open) setSelectedSeat(null);
         }}
         onCloseAutoFocus={(event) => {
           // No Radix trigger exists to restore focus to — send it back to
