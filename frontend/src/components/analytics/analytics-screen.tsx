@@ -1,6 +1,7 @@
 "use client";
 
 import { BadgeCheck, Gauge, Layers, UserRoundMinus } from "lucide-react";
+import { ZoneHeatmap } from "@/components/analytics/zone-heatmap";
 import { BarList } from "@/components/charts/bar-list";
 import { StatCard } from "@/components/charts/stat-card";
 import { ErrorState } from "@/components/layout/error-state";
@@ -8,7 +9,11 @@ import { PageHeader, SectionHeading } from "@/components/layout/page-header";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import AnalyticsLoading from "@/app/(dashboard)/analytics/loading";
 import { errorMessage } from "@/lib/api/client";
-import { useFloorUtilization, useProjectUtilization } from "@/lib/api/hooks";
+import {
+  useDashboardSummary,
+  useFloorUtilization,
+  useProjectUtilization,
+} from "@/lib/api/hooks";
 import { cn, formatNumber } from "@/lib/utils";
 import type { ProjectUtilization } from "@/types";
 
@@ -21,12 +26,22 @@ const FLOOR_SEGMENTS = [
   { key: "maintenance", label: "Maintenance", className: "bg-muted-foreground" },
 ] as const;
 
-const seatedPct = (stat: ProjectUtilization) =>
-  stat.headcount === 0 ? 0 : Math.round((stat.seated / stat.headcount) * 100);
+/**
+ * Honest completeness: a team is 100% only when literally everyone is seated
+ * and 0% only when nobody is. Plain rounding lied here — 240/241 rounds to
+ * 100% while the "fully seated projects" signal says zero, on the same page.
+ */
+const seatedPct = (stat: ProjectUtilization) => {
+  if (stat.headcount === 0) return 0;
+  if (stat.seated >= stat.headcount) return 100;
+  const pct = Math.round((stat.seated / stat.headcount) * 100);
+  return Math.min(99, Math.max(stat.seated > 0 ? 1 : 0, pct));
+};
 
 export function AnalyticsScreen() {
   const projectUtilization = useProjectUtilization();
   const floorUtilization = useFloorUtilization();
+  const summary = useDashboardSummary();
 
   const header = (
     <PageHeader
@@ -36,55 +51,61 @@ export function AnalyticsScreen() {
     />
   );
 
-  if (projectUtilization.isError || floorUtilization.isError) {
+  if (projectUtilization.isError || floorUtilization.isError || summary.isError) {
     return (
       <>
         {header}
         <ErrorState
           title="Could not load analytics"
           description="The Ethara API did not respond. Check that the backend is running, then try again."
-          detail={errorMessage(projectUtilization.error ?? floorUtilization.error)}
+          detail={errorMessage(
+            projectUtilization.error ?? floorUtilization.error ?? summary.error
+          )}
           onRetry={() => {
             if (projectUtilization.isError) void projectUtilization.refetch();
             if (floorUtilization.isError) void floorUtilization.refetch();
+            if (summary.isError) void summary.refetch();
           }}
         />
       </>
     );
   }
 
-  if (!projectUtilization.data || !floorUtilization.data) {
+  if (!projectUtilization.data || !floorUtilization.data || !summary.data) {
     return <AnalyticsLoading />;
   }
 
   const projects = projectUtilization.data;
   const floors = floorUtilization.data;
+  const metrics = summary.data;
 
   /* Derived signals — the aggregates the dashboard doesn't show. */
   const staffed = projects.filter((stat) => stat.headcount > 0);
-  const avgSeated = staffed.length
-    ? Math.round(
-        staffed.reduce((sum, stat) => sum + (stat.seated / stat.headcount) * 100, 0) /
-          staffed.length
-      )
-    : 0;
   const fullySeated = staffed.filter((stat) => stat.seated >= stat.headcount).length;
   const unseated = projects.reduce(
     (sum, stat) => sum + Math.max(0, stat.headcount - stat.seated),
     0
   );
+  /* Supply vs demand in one number: seats still free once everyone currently
+     waiting is seated. Negative = a real shortage. */
+  const spareCapacity = metrics.available - unseated;
   const occupancies = floors.map((stat) => stat.occupancy_pct);
   const spread = floors.length
     ? `${Math.min(...occupancies)}-${Math.max(...occupancies)}%`
     : "n/a";
 
+  /* Projects still owing seats, biggest queue first — the actionable slice. */
+  const waitingByProject = projects
+    .map((stat) => ({ stat, waiting: Math.max(0, stat.headcount - stat.seated) }))
+    .filter(({ waiting }) => waiting > 0)
+    .sort((a, b) => b.waiting - a.waiting);
+
   const signals = [
     {
-      label: "Avg team seated",
-      value: avgSeated,
-      format: (v: number) => `${Math.round(v)}%`,
+      label: "Spare capacity",
+      value: spareCapacity,
       icon: Gauge,
-      hint: "mean share of each team with a seat",
+      hint: "available seats minus people waiting",
       tone: "sky",
     },
     {
@@ -122,31 +143,57 @@ export function AnalyticsScreen() {
       </div>
 
       <SectionHeading index="02" title="Project coverage" className="pt-8" />
-      <Card>
-        <CardHeader>
-          <CardTitle>Seating coverage by project</CardTitle>
-          <CardDescription>
-            Share of each team with an allocated seat, lowest coverage first
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <BarList
-            max={100}
-            emptyMessage="No projects in the directory yet."
-            items={[...projects]
-              .sort((a, b) => seatedPct(a) - seatedPct(b))
-              .map((stat) => ({
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Seating coverage by project</CardTitle>
+            <CardDescription>
+              Share of each team with an allocated seat, lowest coverage first
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BarList
+              max={100}
+              emptyMessage="No projects in the directory yet."
+              items={[...projects]
+                .sort((a, b) => seatedPct(a) - seatedPct(b))
+                .map((stat) => ({
+                  key: String(stat.project.id),
+                  label: stat.project.name,
+                  value: seatedPct(stat),
+                  displayValue: `${formatNumber(stat.seated)} / ${formatNumber(stat.headcount)} seated · ${seatedPct(stat)}%`,
+                  href: `/projects/${stat.project.id}`,
+                }))}
+            />
+          </CardContent>
+        </Card>
+
+        {/* The actionable inverse of coverage: absolute queue sizes, which
+            vary even when every coverage bar hugs 100%. */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Waiting for seats</CardTitle>
+            <CardDescription>
+              Unseated people per project, longest queue first
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <BarList
+              emptyMessage="Nobody is waiting for a seat."
+              items={waitingByProject.map(({ stat, waiting }) => ({
                 key: String(stat.project.id),
                 label: stat.project.name,
-                value: seatedPct(stat),
-                displayValue: `${formatNumber(stat.seated)} / ${formatNumber(stat.headcount)} seated · ${seatedPct(stat)}%`,
+                value: waiting,
+                displayValue: `${formatNumber(waiting)} of ${formatNumber(stat.headcount)} waiting`,
                 href: `/projects/${stat.project.id}`,
               }))}
-          />
-        </CardContent>
-      </Card>
+            />
+          </CardContent>
+        </Card>
+      </div>
 
       <SectionHeading index="03" title="Floor composition" className="pt-8" />
+      <div className="grid gap-4 lg:grid-cols-2">
       <Card>
         <CardHeader className="flex-row flex-wrap items-start justify-between gap-x-4 gap-y-2 space-y-0">
           <div className="space-y-1.5">
@@ -208,6 +255,19 @@ export function AnalyticsScreen() {
           </ol>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Zone occupancy</CardTitle>
+          <CardDescription>
+            How full each zone is, and which teams anchor there
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ZoneHeatmap />
+        </CardContent>
+      </Card>
+      </div>
     </>
   );
 }

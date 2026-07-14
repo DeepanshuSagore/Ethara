@@ -40,50 +40,79 @@ export default function AnalyticsLoading() {
       </div>
 
       <SectionHeading index="02" title="Project coverage" className="pt-8" />
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-4 w-52" />
-          <Skeleton className="h-5 w-72 max-w-full" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {Array.from({ length: 8 }, (_, i) => (
-              <div key={i} className="px-1 py-0.5">
-                <div className="flex items-baseline justify-between gap-3">
-                  <Skeleton className={cn("h-5", BAR_LABEL_WIDTHS[i % BAR_LABEL_WIDTHS.length])} />
-                  <Skeleton className={cn("h-5", BAR_VALUE_WIDTHS[i % BAR_VALUE_WIDTHS.length])} />
-                </div>
-                <Skeleton className="mt-1.5 h-2 w-full rounded-full" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        {Array.from({ length: 2 }, (_, card) => (
+          <Card key={card}>
+            <CardHeader>
+              <Skeleton className="h-4 w-52" />
+              <Skeleton className="h-5 w-72 max-w-full" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {Array.from({ length: 8 }, (_, i) => (
+                  <div key={i} className="px-1 py-0.5">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <Skeleton
+                        className={cn("h-5", BAR_LABEL_WIDTHS[i % BAR_LABEL_WIDTHS.length])}
+                      />
+                      <Skeleton
+                        className={cn("h-5", BAR_VALUE_WIDTHS[i % BAR_VALUE_WIDTHS.length])}
+                      />
+                    </div>
+                    <Skeleton className="mt-1.5 h-2 w-full rounded-full" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
 
       <SectionHeading index="03" title="Floor composition" className="pt-8" />
-      <Card>
-        <CardHeader className="flex-row flex-wrap items-start justify-between gap-x-4 gap-y-2 space-y-0">
-          <div className="space-y-1.5">
-            <Skeleton className="h-4 w-44" />
-            <Skeleton className="h-5 w-64 max-w-full" />
-          </div>
-          <Skeleton className="h-4 w-72 max-w-full" />
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {Array.from({ length: 5 }, (_, i) => (
-              <div key={i} className="px-1 py-0.5">
-                <div className="flex items-baseline justify-between gap-3">
-                  <Skeleton className="h-5 w-16" />
-                  <Skeleton className="h-5 w-28" />
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex-row flex-wrap items-start justify-between gap-x-4 gap-y-2 space-y-0">
+            <div className="space-y-1.5">
+              <Skeleton className="h-4 w-44" />
+              <Skeleton className="h-5 w-64 max-w-full" />
+            </div>
+            <Skeleton className="h-4 w-72 max-w-full" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className="px-1 py-0.5">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <Skeleton className="h-5 w-16" />
+                    <Skeleton className="h-5 w-28" />
+                  </div>
+                  <Skeleton className="mt-0.5 h-4 w-80 max-w-full" />
+                  <Skeleton className="mt-1.5 h-2.5 w-full rounded-full" />
                 </div>
-                <Skeleton className="mt-0.5 h-4 w-80 max-w-full" />
-                <Skeleton className="mt-1.5 h-2.5 w-full rounded-full" />
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Zone occupancy heatmap: 5 label + 2-cell rows. */}
+        <Card>
+          <CardHeader>
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="h-5 w-72 max-w-full" />
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              {Array.from({ length: 5 }, (_, i) => (
+                <div key={i} className="grid grid-cols-[3.5rem_1fr_1fr] gap-2">
+                  <Skeleton className="h-14 w-12 self-center" />
+                  <Skeleton className="h-14 rounded-lg" />
+                  <Skeleton className="h-14 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
