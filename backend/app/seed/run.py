@@ -20,7 +20,7 @@ from datetime import timedelta
 from random import Random
 
 from faker import Faker
-from sqlalchemy import delete, insert
+from sqlalchemy import delete, insert, text
 
 from app.core.database import SessionLocal
 from app.models import Employee, Project, Seat, SeatAllocation
@@ -205,6 +205,21 @@ def seed() -> None:
         session.execute(insert(Seat), rows["seats"])
         session.execute(insert(Employee), rows["employees"])
         session.execute(insert(SeatAllocation), rows["allocations"])
+
+        # The rows above carry explicit ids, which leaves Postgres identity
+        # sequences at 1 — every later API INSERT would then collide on the
+        # primary key (IntegrityError surfacing as a bogus 409). Bump each
+        # sequence past the seeded max. SQLite needs nothing: its rowid
+        # picks max(id)+1 natively.
+        if session.get_bind().dialect.name == "postgresql":
+            for model in (Project, Seat, Employee, SeatAllocation):
+                table = model.__tablename__
+                session.execute(
+                    text(
+                        f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), "
+                        f"(SELECT COALESCE(MAX(id), 1) FROM {table}))"
+                    )
+                )
         session.commit()
 
     print(
