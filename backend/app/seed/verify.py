@@ -66,7 +66,10 @@ def verify() -> int:
         _check(f"floors >= 5 (got {len(floors)})", len(floors) >= 5)
         _check(f"zones >= 10 (got {len(zones)})", len(zones) >= 10)
         _check(f"seats >= 5500 (got {n_seats})", n_seats >= 5500)
-        _check(f"employees == 5000 (got {n_employees})", n_employees == 5000)
+        _check(
+            f"employees == {d.TOTAL_EMPLOYEES} (~5,000 per brief; got {n_employees})",
+            n_employees == d.TOTAL_EMPLOYEES and 4_800 <= n_employees <= 5_200,
+        )
 
         _check(
             f"AVAILABLE >= 500 (got {seat_status.get('AVAILABLE', 0)})",
@@ -83,6 +86,32 @@ def verify() -> int:
         _check(
             f"PENDING_ALLOCATION >= 50 (got {emp_status.get('PENDING_ALLOCATION', 0)})",
             emp_status.get("PENDING_ALLOCATION", 0) >= 50,
+        )
+
+        # Anti-uniformity guards: the data must look organic, not generated.
+        # Eleven near-identical teams and a flat per-floor percentage are the
+        # instant "fake seed" tells this seeder is designed to avoid.
+        project_sizes = sorted(
+            count
+            for _, count in session.execute(
+                select(Employee.project_id, func.count()).group_by(Employee.project_id)
+            ).all()
+        )
+        _check(
+            f"team sizes organic (min {project_sizes[0]}, max {project_sizes[-1]}, ratio >= 2x)",
+            project_sizes and project_sizes[-1] >= 2 * project_sizes[0],
+        )
+        floor_occupied = sorted(
+            count
+            for _, count in session.execute(
+                select(Seat.floor, func.count())
+                .where(Seat.status == "OCCUPIED")
+                .group_by(Seat.floor)
+            ).all()
+        )
+        _check(
+            f"floor occupancy uneven (spread {floor_occupied[-1] - floor_occupied[0]} seats >= 100)",
+            floor_occupied and floor_occupied[-1] - floor_occupied[0] >= 100,
         )
 
         amit = session.scalar(select(Employee).where(Employee.email == "amit@ethara.ai"))

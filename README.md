@@ -22,8 +22,9 @@ natural-language AI assistant.
   over automatically if Groq is unavailable — the demo never breaks.
 - **Demo Mode** — instant role switcher (Admin / HR / Project / Employee), no login required.
 - **REST API** — every endpoint from the brief, documented live in Swagger at `/docs`.
-- **Seed data** — deterministic Faker dataset: 5,000 employees · 5,600 seats · 11 projects ·
-  510 available / 100 reserved / 50 maintenance seats · 50 pending joiners.
+- **Seed data** — deterministic Faker dataset with organic distributions: 4,987 employees ·
+  5,600 seats · 11 projects sized on a power curve (933 down to 190 people) · floors running
+  79-95% occupied · 534 available / 118 reserved / 41 maintenance seats · 57 pending joiners.
 
 ---
 
@@ -67,7 +68,7 @@ cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 alembic upgrade head             # create the schema (SQLite by default)
-python -m app.seed.run           # seed 5,000 employees / 5,600 seats / 11 projects
+python -m app.seed.run           # seed ~5,000 employees / 5,600 seats / 11 projects
 uvicorn app.main:app --reload    # http://localhost:8000  (Swagger at /docs)
 ```
 
@@ -79,7 +80,7 @@ cp .env.local.example .env.local # optional — defaults to http://localhost:800
 npm run dev                      # http://localhost:3000
 ```
 
-With both up, the dashboard shows the live seeded volumes (4,990 active employees,
+With both up, the dashboard shows the live seeded volumes (4,987 employees,
 5,600 seats, 88% utilization), and every allocate/release/add-joiner action round-trips
 through the API (try asking the Assistant: *"Where is my seat? My email is amit@ethara.ai"*).
 

@@ -199,14 +199,14 @@ backend/
 
 | Item                          | Requirement            | Plan |
 |-------------------------------|------------------------|------|
-| Employees                     | 5,000                  | 5,000, emails `@ethara.ai` |
+| Employees                     | 5,000                  | 4,987 (~5,000; organic, non-uniform), emails `@ethara.ai` |
 | Floors                        | ≥ 5                    | 5 floors |
 | Zones                         | ≥ 10                   | 10 (2 per floor: A–B) |
 | Seats                         | ≥ 5,500                | ~5,600 (floor→zone→bay→seat) |
 | Projects                      | ≥ 10                   | 11 named projects |
 | Available seats               | ≥ 500                  | ✅ enforced by generator |
 | Reserved seats                | ≥ 100                  | ✅ enforced |
-| Maintenance seats             | (some)                 | ~50 |
+| Maintenance seats             | (some)                 | 41 |
 | Employees pending allocation  | ≥ 50                   | ✅ status PENDING_ALLOCATION |
 
 Seat code format: `{zone}{bay}-{seat}` → e.g. `B4-23`. Each employee maps to exactly one active

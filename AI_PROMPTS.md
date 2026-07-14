@@ -677,6 +677,31 @@ dialog opened from a list row; tsc + `next build` clean.
 
 ---
 
+## 15. Organic Seed Distributions
+
+**Prompt:** "the doc approximately 5000 people so, let's reduce numbers a bit and make them
+look a bit real... the math doesn't math good here... not every number should be the same."
+
+**AI output / what changed:** the seeder's three uniformity sources were replaced while
+keeping the deterministic fixed-seed pipeline: (1) round-robin `i % 11` project assignment →
+a power-curve split (weights in `PROJECT_SIZE_WEIGHTS`, largest-remainder to exact counts:
+933 down to 190 people, shuffled so pending/exited land in every team); (2) building-wide
+uniform scatter of seat statuses → per-floor `FLOOR_STATUS_MIX`, so floors run 79-95%
+occupied instead of a flat 88%; (3) round targets (5,000 / 510 / 100 / 50 / 50) → messy ones
+(4,987 employees · 534 available · 118 reserved · 41 maintenance · 57 pending · 23 exited ·
+31 on-leave). All §6 minimums still hold. `verify.py` gained two anti-uniformity guards
+(team-size ratio ≥ 2x, floor-occupancy spread ≥ 100 seats) so the data can never regress to
+looking generated.
+
+**Correct:** the arithmetic invariant (OCCUPIED == SEATED) is now asserted at import time in
+`data.py`, so a mis-tuned mix fails before touching the database.
+
+**Verification:** `python -m app.seed.run` → 23/23 checks pass (was 21) including the new
+guards; pytest 66/66 (fixtures are independent of the seeder); Render Postgres reseeded and
+live /dashboard endpoints spot-checked.
+
+---
+
 ## Appendix — Scaffolding (Phase 0)
 
 **Prompt:** "Scaffold Next.js (App Router, TS, Tailwind, src dir) frontend and a FastAPI backend

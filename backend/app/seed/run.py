@@ -82,23 +82,29 @@ def build_rows() -> dict[str, list[dict]]:
                     }
                 )
 
-    # Scatter the non-occupied statuses across the building (mirrors the mock).
-    scattered = [s["id"] for s in seats]
-    rng.shuffle(scattered)
+    # Scatter the non-occupied statuses within each floor per FLOOR_STATUS_MIX
+    # — deliberately uneven, so floors read 79–95% occupied instead of every
+    # floor landing on the same flat percentage.
     status_for: dict[int, str] = {}
-    cursor = 0
-    for status, count in (
-        ("AVAILABLE", d.AVAILABLE_COUNT),
-        ("RESERVED", d.RESERVED_COUNT),
-        ("MAINTENANCE", d.MAINTENANCE_COUNT),
-    ):
-        for sid in scattered[cursor : cursor + count]:
-            status_for[sid] = status
-        cursor += count
+    for floor in d.FLOORS:
+        floor_ids = [s["id"] for s in seats if s["floor"] == floor]
+        rng.shuffle(floor_ids)
+        cursor = 0
+        for status, count in d.FLOOR_STATUS_MIX[floor].items():
+            for sid in floor_ids[cursor : cursor + count]:
+                status_for[sid] = status
+            cursor += count
     for seat in seats:
         seat["status"] = status_for.get(seat["id"], "OCCUPIED")
 
-    # --- Employees: 5,000; #1 is the brief's AI-assistant example ------------
+    # --- Employees: ~5,000; #1 is the brief's AI-assistant example -----------
+    # Power-curve team sizes (largest ≈ 5× smallest), shuffled across employee
+    # ids so pending/exited/on-leave statuses land in every team.
+    project_pool: list[int] = []
+    for project_id, count in enumerate(d.project_member_counts(), start=1):
+        project_pool.extend([project_id] * count)
+    rng.shuffle(project_pool)
+
     used_emails: set[str] = set()
     employees: list[dict] = []
     for i in range(d.TOTAL_EMPLOYEES):
@@ -128,7 +134,7 @@ def build_rows() -> dict[str, list[dict]]:
                 "role": rng.choice(d.DEPARTMENT_ROLES[department]),
                 "joining_date": joining_date,
                 "status": status,
-                "project_id": (i % len(projects)) + 1,
+                "project_id": project_pool[i],
                 "created_at": joining_date,
                 "updated_at": days_from_base(rng.randint(0, 30)),
             }
