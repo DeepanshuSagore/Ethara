@@ -28,6 +28,7 @@ import {
   useProjects,
   useProjectUtilization,
 } from "@/lib/api/hooks";
+import { useRole } from "@/lib/demo-role";
 import { cn, formatDate, formatNumber } from "@/lib/utils";
 
 /* Queue-row skeleton widths — keep in sync with app/(dashboard)/loading.tsx. */
@@ -88,7 +89,10 @@ export function DashboardScreen() {
   const summary = useDashboardSummary();
   const projectUtilization = useProjectUtilization();
   const floorUtilization = useFloorUtilization();
-  const pendingJoiners = usePendingJoiners();
+  const { role } = useRole();
+  const canSeeQueue = role !== "Employee";
+  // The named queue is HR detail — don't even fetch it for the Employee view.
+  const pendingJoiners = usePendingJoiners(canSeeQueue);
   const projects = useProjects();
 
   if (summary.isError || projectUtilization.isError || floorUtilization.isError) {
@@ -263,6 +267,9 @@ export function DashboardScreen() {
             </CardContent>
           </Card>
 
+          {/* Named onboarding queue: HR-facing detail, hidden from the
+              Employee persona (the aggregate KPI above stays). */}
+          {canSeeQueue && (
           <Card className="flex-1">
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div className="space-y-1.5">
@@ -337,6 +344,7 @@ export function DashboardScreen() {
               )}
             </CardContent>
           </Card>
+          )}
         </div>
       </div>
 

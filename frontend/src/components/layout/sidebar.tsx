@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Armchair, PanelLeftClose, PanelLeftOpen } from "lucide-react";
-import { NAV_ITEMS } from "@/lib/constants";
+import { navItemsFor } from "@/lib/constants";
+import { useRole } from "@/lib/demo-role";
 import { cn } from "@/lib/utils";
 
 interface SidebarProps {
@@ -17,6 +18,8 @@ const focusRing =
 
 export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
   const pathname = usePathname();
+  const { role } = useRole();
+  const navItems = navItemsFor(role);
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
@@ -49,7 +52,7 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto p-2" aria-label="Main navigation">
         <ul className="flex flex-col gap-1">
-          {NAV_ITEMS.map((item) => {
+          {navItems.map((item) => {
             const active =
               item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (

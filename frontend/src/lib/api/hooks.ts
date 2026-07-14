@@ -64,13 +64,14 @@ export function useFloorUtilization() {
 
 // --- Employees ---------------------------------------------------------------
 
-export function useEmployees(params: EmployeeListParams = {}) {
+export function useEmployees(params: EmployeeListParams = {}, enabled = true) {
   return useQuery({
     queryKey: ["employees", params],
     queryFn: ({ signal }) => listEmployees(params, signal),
     // Keep the previous page on screen while the next one loads, so paging
     // and typing in the search box never flash a skeleton.
     placeholderData: keepPreviousData,
+    enabled,
   });
 }
 
@@ -85,8 +86,8 @@ export function useEmployee(id: number) {
 }
 
 /** The pending-allocation queue (~50 rows) — shared by dashboard, dialogs & queue. */
-export function usePendingJoiners() {
-  return useEmployees({ status: "PENDING_ALLOCATION" });
+export function usePendingJoiners(enabled = true) {
+  return useEmployees({ status: "PENDING_ALLOCATION" }, enabled);
 }
 
 // --- Projects ----------------------------------------------------------------
