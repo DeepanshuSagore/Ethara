@@ -67,9 +67,14 @@ const SelectContent = React.forwardRef<
     <SelectPrimitive.Content
       ref={ref}
       className={cn(
-        "relative z-50 max-h-96 min-w-32 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-overlay data-[state=open]:animate-in data-[state=closed]:animate-fade-out",
-        position === "popper" &&
-          "data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1",
+        "relative z-50 min-w-32 overflow-hidden rounded-xl border border-border bg-popover text-popover-foreground shadow-overlay data-[state=open]:animate-in data-[state=closed]:animate-fade-out",
+        // Popper mode must defer to Radix's measured space between the
+        // trigger and the viewport edge: a static max-height taller than
+        // that space overflows past the screen edge on short windows
+        // (long lists erupt out of dialogs and clip at the top).
+        position === "popper"
+          ? "max-h-[min(24rem,var(--radix-select-content-available-height))] data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1"
+          : "max-h-96",
         className
       )}
       position={position}
@@ -79,8 +84,7 @@ const SelectContent = React.forwardRef<
       <SelectPrimitive.Viewport
         className={cn(
           "p-1",
-          position === "popper" &&
-            "h-(--radix-select-trigger-height) w-full min-w-(--radix-select-trigger-width)"
+          position === "popper" && "w-full min-w-(--radix-select-trigger-width)"
         )}
       >
         {children}

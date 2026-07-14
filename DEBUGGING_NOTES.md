@@ -265,3 +265,19 @@ curl pass matched expectations. Design notes worth recording:
   after any transform/filter animation completes, every `position: fixed` child silently
   re-anchors. Fill backwards (or remove the fill) once the end state equals the natural
   state.
+
+### Joiner dropdown erupted past the viewport top — static max-height vs Radix available height
+- **Symptom:** opening "Select new joiner" in the seat dialog on a short window rendered the
+  ~50-item list as a huge panel detached from the dialog, clipped at the top of the screen.
+- **Cause:** SelectContent (popper mode) capped height with a static `max-h-96` (384px).
+  Radix measures the real space between the trigger and the viewport edge and exposes it as
+  `--radix-select-content-available-height`; when 384px > that space (trigger sits low in a
+  dialog, list flips to side=top), the content overflows past the screen edge. A second
+  latent quirk: the viewport carried `h-(--radix-select-trigger-height)`, a no-op class.
+- **Fix:** popper content now uses `max-h-[min(24rem,var(--radix-select-content-available-height))]`
+  (shrinks to fit, still capped at 24rem on tall screens); dropped the no-op viewport height
+  class. Applies to every Select in the app.
+- **Verified:** probe at 1280x800 → h=384 (cap), and 1280x620 → h=303 == available height,
+  top=6, no clipping; screenshot shows the list attached above its trigger inside the dialog.
+- **Lesson:** for Radix popper content, never trust a static max-height alone — always min()
+  it with `--radix-select-content-available-height`, or short viewports will clip.
