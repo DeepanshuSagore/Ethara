@@ -3,7 +3,7 @@
 import * as React from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "next/navigation";
-import { RotateCcw, Sofa } from "lucide-react";
+import { List, Map as MapIcon, RotateCcw, Sofa } from "lucide-react";
 import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -17,6 +17,7 @@ import {
 } from "@/components/seats/seat-cell";
 import { SeatDialog } from "@/components/seats/seat-dialog";
 import { SeatLegend } from "@/components/seats/seat-legend";
+import { SeatListView } from "@/components/seats/seat-list";
 import { SeatMapSkeleton } from "@/components/seats/seat-map-skeleton";
 import { errorMessage } from "@/lib/api/client";
 import {
@@ -42,6 +43,9 @@ const ZONE_SEGMENTS: { key: SeatStatus; className: string }[] = [
 /** How cells are colored: by seat status, or by the occupant's project. */
 type MapLens = "status" | "project";
 
+/** Spatial map for orientation; filterable list for inventory work and AT. */
+type SeatView = "map" | "list";
+
 interface FloorProject {
   id: number;
   name: string;
@@ -60,6 +64,11 @@ export function SeatMap() {
 
   const [floor, setFloor] = React.useState(initialFloor);
   const [lens, setLens] = React.useState<MapLens>("status");
+  // ?view= survives refresh/share so a facilities person can bookmark the list.
+  const [view, setView] = React.useState<SeatView>(
+    searchParams.get("view") === "list" ? "list" : "map"
+  );
+  const [spotlight, setSpotlight] = React.useState<SeatStatus | null>(null);
   const [selectedSeat, setSelectedSeat] = React.useState<Seat | null>(null);
   // Survives the dialog's close (selectedSeat is null by then) so focus can
   // return to the cell that opened it.
@@ -85,6 +94,13 @@ export function SeatMap() {
     setFloor(Number(value));
     const params = new URLSearchParams(window.location.search);
     params.set("floor", value);
+    window.history.replaceState(null, "", `?${params.toString()}`);
+  };
+
+  const handleViewChange = (value: SeatView) => {
+    setView(value);
+    const params = new URLSearchParams(window.location.search);
+    params.set("view", value);
     window.history.replaceState(null, "", `?${params.toString()}`);
   };
 
@@ -229,37 +245,71 @@ export function SeatMap() {
           ) : (
             <>
               <div className="mb-4 flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
-                {lens === "status" ? (
-                  <SeatLegend counts={counts} />
+                {view === "list" ? (
+                  <span aria-hidden="true" />
+                ) : lens === "status" ? (
+                  <SeatLegend counts={counts} spotlight={spotlight} onSpotlight={setSpotlight} />
                 ) : (
                   <ProjectLegend items={floorProjects} />
                 )}
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">Color by</span>
+                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+                  {view === "map" && (
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">Color by</span>
+                      <div
+                        role="group"
+                        aria-label="Color seats by"
+                        className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5"
+                      >
+                        {(
+                          [
+                            { value: "status", label: "Status" },
+                            { value: "project", label: "Project" },
+                          ] as const
+                        ).map(({ value, label }) => (
+                          <button
+                            key={value}
+                            type="button"
+                            aria-pressed={lens === value}
+                            disabled={value === "project" && !lensReady}
+                            onClick={() => setLens(value)}
+                            className={cn(
+                              "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
+                              lens === value
+                                ? "bg-card text-foreground shadow-soft"
+                                : "text-muted-foreground hover:text-foreground"
+                            )}
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                   <div
                     role="group"
-                    aria-label="Color seats by"
+                    aria-label="View"
                     className="flex items-center gap-0.5 rounded-lg bg-muted p-0.5"
                   >
                     {(
                       [
-                        { value: "status", label: "Status" },
-                        { value: "project", label: "Project" },
+                        { value: "map", label: "Map", icon: MapIcon },
+                        { value: "list", label: "List", icon: List },
                       ] as const
-                    ).map(({ value, label }) => (
+                    ).map(({ value, label, icon: Icon }) => (
                       <button
                         key={value}
                         type="button"
-                        aria-pressed={lens === value}
-                        disabled={value === "project" && !lensReady}
-                        onClick={() => setLens(value)}
+                        aria-pressed={view === value}
+                        onClick={() => handleViewChange(value)}
                         className={cn(
-                          "cursor-pointer rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50",
-                          lens === value
+                          "flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
+                          view === value
                             ? "bg-card text-foreground shadow-soft"
                             : "text-muted-foreground hover:text-foreground"
                         )}
                       >
+                        <Icon className="size-3.5" aria-hidden="true" />
                         {label}
                       </button>
                     ))}
@@ -267,6 +317,18 @@ export function SeatMap() {
                 </div>
               </div>
 
+              {view === "list" ? (
+                <SeatListView
+                  key={floor}
+                  seats={floorSeats}
+                  seatMeta={seatMeta}
+                  occupantBySeat={occupantBySeat}
+                  onSelect={(seat) => {
+                    lastSeatIdRef.current = seat.id;
+                    setSelectedSeat(seat);
+                  }}
+                />
+              ) : (
               <div
                 className="grid grid-cols-1 gap-4 xl:grid-cols-2"
                 onMouseOver={(e) => moveTip(e.target)}
@@ -330,6 +392,7 @@ export function SeatMap() {
                             zone={zone}
                             bays={sortedBays}
                             lens={lens}
+                            spotlight={spotlight}
                             seatMeta={seatMeta}
                             selectedSeatId={selectedSeat?.id ?? null}
                             onSelect={(seat) => {
@@ -343,6 +406,7 @@ export function SeatMap() {
                   );
                 })}
               </div>
+              )}
             </>
           )}
         </TabsContent>
@@ -424,6 +488,8 @@ interface ZoneGridProps {
   /** Bay entries sorted by bay number; each row holds that bay's seats. */
   bays: [number, Seat[]][];
   lens: MapLens;
+  /** Status-lens focus mode: dim every seat whose status doesn't match. */
+  spotlight: SeatStatus | null;
   /** seat id → occupant's project name + tone (occupied seats only). */
   seatMeta: Map<number, { name: string; tone: number }>;
   selectedSeatId: number | null;
@@ -437,7 +503,7 @@ interface ZoneGridProps {
  * activation that opens the seat dialog. Below md the whole bay list scrolls
  * horizontally so every bay stays one 7-across line.
  */
-function ZoneGrid({ zone, bays, lens, seatMeta, selectedSeatId, onSelect }: ZoneGridProps) {
+function ZoneGrid({ zone, bays, lens, spotlight, seatMeta, selectedSeatId, onSelect }: ZoneGridProps) {
   const [pos, setPos] = React.useState<[number, number]>([0, 0]);
   const cellRefs = React.useRef(new Map<string, HTMLButtonElement>());
 
@@ -512,8 +578,9 @@ function ZoneGrid({ zone, bays, lens, seatMeta, selectedSeatId, onSelect }: Zone
                     projectName={meta?.name}
                     projectTone={lens === "project" ? (meta?.tone ?? null) : null}
                     dimmed={
-                      lens === "project" &&
-                      (seat.status === "RESERVED" || seat.status === "MAINTENANCE")
+                      lens === "project"
+                        ? seat.status === "RESERVED" || seat.status === "MAINTENANCE"
+                        : spotlight != null && seat.status !== spotlight
                     }
                     isOpen={selectedSeatId === seat.id}
                     tabIndex={focusRow === rowIndex && focusCol === colIndex ? 0 : -1}

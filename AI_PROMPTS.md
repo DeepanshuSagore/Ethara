@@ -648,6 +648,35 @@ untouched server-side).
 
 ---
 
+## 14. Seat Views for Different Personas (design-taste + ui-ux-pro-max)
+
+**Prompt:** "about the view of the seats, use the skills again and see if we can do any
+improvements in the UI, or maybe add another view options for different people."
+
+**AI output / what changed:** (1) **Map / List view toggle** (URL-synced `?view=` so it
+survives refresh and can be bookmarked) — the list is a paginated (25/page), status- and
+zone-filterable table where every row carries the full §3.3 record: seat code, zone, bay,
+status badge, occupant name, project, allocation date. Occupant names resolve lazily per
+page via cached per-employee queries; the seat-code button opens the same seat dialog
+(keyboard path included, focus returns to the row on close). This is the HR/facilities
+modality ("every reserved seat in Zone B") and doubles as the screen-reader-friendly table
+alternative both skills mandate for grid visualizations. (2) **Status spotlight** — legend
+chips became toggle buttons; pressing one dims every other status on the map (press again to
+clear), a focus mode for facilities scanning maintenance or reserved stock.
+
+**Correct:** the delegated-tooltip and dialog plumbing needed no changes; the list reuses the
+existing table, badge, select, and pagination primitives without new dependencies.
+
+**Incorrect / judgment call:** occupant names in the list cost up to 25 parallel
+`GET /employees/{id}` on a fresh page — accepted (TanStack caches each employee forever
+after), instead of adding a bulk-by-ids endpoint the backend spec doesn't define.
+
+**Verification:** headless-Chrome drive in both themes: spotlight toggled on/off, view toggle
+syncs `?view=list`, Reserved filter returned exactly 13 rows (matching the legend count),
+dialog opened from a list row; tsc + `next build` clean.
+
+---
+
 ## Appendix — Scaffolding (Phase 0)
 
 **Prompt:** "Scaffold Next.js (App Router, TS, Tailwind, src dir) frontend and a FastAPI backend
