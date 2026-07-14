@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-query";
 import type { Seat, SeatAllocation } from "@/types";
 import { listAllocations } from "./allocations";
-import { askAssistant } from "./ai";
+import { askAssistant, type AiChatTurn } from "./ai";
 import {
   getDashboardSummary,
   getFloorUtilization,
@@ -117,11 +117,14 @@ export function useProjectEmployees(id: number) {
 
 // --- Seats ---------------------------------------------------------------------
 
-export function useSeats(params: SeatListParams = {}) {
+export function useSeats(params: SeatListParams = {}, enabled = true) {
   return useQuery({
     queryKey: ["seats", params],
     queryFn: ({ signal }) => listSeats(params, signal),
     placeholderData: keepPreviousData,
+    // The allocation dialog mounts on every project page — its seat-map
+    // query must not fire until the seat step is actually shown.
+    enabled,
   });
 }
 
@@ -129,6 +132,9 @@ export function useSeatSuggestions(employeeId: number, limit = 3) {
   return useQuery({
     queryKey: ["seats", "suggestions", employeeId, limit],
     queryFn: ({ signal }) => listSeatSuggestions(employeeId, limit, signal),
+    // The allocation dialog mounts this before a joiner is picked (id 0) —
+    // same guard as useEmployee so we never fetch a nonsense id.
+    enabled: Number.isInteger(employeeId) && employeeId > 0,
   });
 }
 
@@ -222,5 +228,8 @@ export function useAddJoiner() {
 // --- Assistant -------------------------------------------------------------------
 
 export function useAiQuery() {
-  return useMutation({ mutationFn: (query: string) => askAssistant(query) });
+  return useMutation({
+    mutationFn: (vars: { query: string; history?: AiChatTurn[] }) =>
+      askAssistant(vars.query, vars.history),
+  });
 }

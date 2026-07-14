@@ -9,11 +9,14 @@ import {
   MapPin,
   RotateCcw,
   UserRound,
+  UserRoundPlus,
   Users,
   type LucideIcon,
 } from "lucide-react";
 import { StatCard } from "@/components/charts/stat-card";
+import { AddJoinerDialog } from "@/components/employees/add-joiner-dialog";
 import { EmployeeTable } from "@/components/employees/employee-table";
+import { AllocatePeopleDialog } from "@/components/projects/allocate-people-dialog";
 import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { TableSkeleton } from "@/components/layout/skeletons";
@@ -28,6 +31,7 @@ import {
   useProjectEmployees,
   useProjectUtilization,
 } from "@/lib/api/hooks";
+import { useRole } from "@/lib/demo-role";
 import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
@@ -102,7 +106,9 @@ export function ProjectDetail({ id }: { id: number }) {
   const projectQuery = useProject(id);
   const utilizationQuery = useProjectUtilization();
   const membersQuery = useProjectEmployees(id);
+  const { role } = useRole();
   const [page, setPage] = React.useState(1);
+  const canManage = role === "Admin" || role === "HR";
 
   // Reset paging when navigating between projects so a new project never
   // opens mid-table on the previous project's page number.
@@ -186,7 +192,18 @@ export function ProjectDetail({ id }: { id: number }) {
         eyebrow="Portfolio"
         title={project.name}
         description={project.description}
-        actions={<BackToProjects />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            <BackToProjects />
+            {canManage && (
+              <AllocatePeopleDialog project={project}>
+                <Button>
+                  <UserRoundPlus /> Allocate people
+                </Button>
+              </AllocatePeopleDialog>
+            )}
+          </div>
+        }
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -241,6 +258,15 @@ export function ProjectDetail({ id }: { id: number }) {
               icon={Users}
               title="No team members yet"
               description={`Nobody is mapped to ${project.name} right now. New joiners appear here once assigned.`}
+              action={
+                canManage ? (
+                  <AddJoinerDialog defaultProjectId={project.id}>
+                    <Button variant="outline">
+                      <UserRoundPlus /> Add new joiner
+                    </Button>
+                  </AddJoinerDialog>
+                ) : undefined
+              }
             />
           ) : (
             <>

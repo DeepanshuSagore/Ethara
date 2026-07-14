@@ -60,17 +60,25 @@ function FieldError({ id, message }: { id: string; message?: string }) {
 }
 
 /** Admin/HR dialog: add a new joiner to the pending-allocation queue. */
-export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
+export function AddJoinerDialog({
+  children,
+  defaultProjectId,
+}: {
+  children: React.ReactNode;
+  /** Preselects the project when the dialog opens from a project's own page. */
+  defaultProjectId?: number;
+}) {
   const projectsQuery = useProjects();
   const addJoiner = useAddJoiner();
   const { toast } = useToast();
 
+  const initialProjectId = defaultProjectId != null ? String(defaultProjectId) : "";
   const [open, setOpen] = React.useState(false);
   const [name, setName] = React.useState("");
   const [email, setEmail] = React.useState("");
   const [department, setDepartment] = React.useState("");
   const [role, setRole] = React.useState("");
-  const [projectId, setProjectId] = React.useState("");
+  const [projectId, setProjectId] = React.useState(initialProjectId);
   const [errors, setErrors] = React.useState<FormErrors>({});
 
   const nameRef = React.useRef<HTMLInputElement>(null);
@@ -87,7 +95,7 @@ export function AddJoinerDialog({ children }: { children: React.ReactNode }) {
     setEmail("");
     setDepartment("");
     setRole("");
-    setProjectId("");
+    setProjectId(initialProjectId);
     setErrors({});
   };
 

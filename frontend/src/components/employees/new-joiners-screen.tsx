@@ -13,6 +13,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { AddJoinerDialog } from "@/components/employees/add-joiner-dialog";
+import { AllocatePeopleDialog } from "@/components/projects/allocate-people-dialog";
 import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
@@ -32,7 +33,7 @@ import {
 } from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
 import { cn, formatDate, formatNumber, initials } from "@/lib/utils";
-import type { Employee, SeatSuggestion } from "@/types";
+import type { Employee, Project, SeatSuggestion } from "@/types";
 
 const REASON_LABELS: Record<SeatSuggestion["reason"], string> = {
   "team-zone": "near team",
@@ -57,11 +58,11 @@ const AVATAR_TONES = [
 
 function JoinerCard({
   joiner,
-  projectName,
+  project,
   canManage,
 }: {
   joiner: Employee;
-  projectName?: string;
+  project?: Project;
   canManage: boolean;
 }) {
   const suggestionsQuery = useSeatSuggestions(joiner.id);
@@ -113,7 +114,7 @@ function JoinerCard({
             </Link>
           </CardTitle>
           <CardDescription className="truncate">
-            {joiner.role} · {projectName ?? "no project"} · joined {formatDate(joiner.joining_date)}
+            {joiner.role} · {project?.name ?? "no project"} · joined {formatDate(joiner.joining_date)}
           </CardDescription>
         </div>
         <Badge variant="warning">
@@ -122,10 +123,21 @@ function JoinerCard({
         </Badge>
       </CardHeader>
       <CardContent>
-        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-          Suggested seats
-        </p>
+        <div className="mb-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
+          <p className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+            Suggested seats
+          </p>
+          {/* The full chooser for when none of the three suggestions fit —
+              same seat-map picker as the project page's Allocate people. */}
+          {canManage && project && (
+            <AllocatePeopleDialog project={project} joiner={joiner}>
+              <Button variant="ghost" size="sm" className="-my-1.5 text-muted-foreground">
+                <MapIcon /> Pick on map
+              </Button>
+            </AllocatePeopleDialog>
+          )}
+        </div>
         {suggestionsQuery.isPending ? (
           <div
             role="status"
@@ -304,7 +316,7 @@ export function NewJoinersScreen() {
               <JoinerCard
                 key={joiner.id}
                 joiner={joiner}
-                projectName={projectsById.get(joiner.project_id)?.name}
+                project={projectsById.get(joiner.project_id)}
                 canManage={canManage}
               />
             ))}

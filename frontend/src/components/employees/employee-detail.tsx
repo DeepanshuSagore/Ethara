@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowLeft, Armchair, DoorOpen, FolderKanban, UserX } from "lucide-react";
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
+import { AllocatePeopleDialog } from "@/components/projects/allocate-people-dialog";
 import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
@@ -163,13 +164,23 @@ export function EmployeeDetail({ id }: { id: number }) {
                 <DoorOpen /> {releaseSeatMutation.isPending ? "Releasing…" : "Release seat"}
               </Button>
             )}
-            {canManage && employee.status === "PENDING_ALLOCATION" && (
-              <Button asChild>
-                <Link href="/new-joiners">
-                  <Armchair /> Allocate seat
-                </Link>
-              </Button>
-            )}
+            {canManage &&
+              employee.status === "PENDING_ALLOCATION" &&
+              // The chooser needs the project for team-zone context; until it
+              // loads, the queue page stays the fallback.
+              (project ? (
+                <AllocatePeopleDialog project={project} joiner={employee}>
+                  <Button>
+                    <Armchair /> Allocate seat
+                  </Button>
+                </AllocatePeopleDialog>
+              ) : (
+                <Button asChild>
+                  <Link href="/new-joiners">
+                    <Armchair /> Allocate seat
+                  </Link>
+                </Button>
+              ))}
           </div>
         }
       />
