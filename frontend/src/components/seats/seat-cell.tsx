@@ -21,6 +21,18 @@ export const SEAT_STATUS_STYLES: Record<SeatStatus, string> = {
   MAINTENANCE: "border border-dashed border-input bg-card text-muted-foreground",
 };
 
+/* Project-lens recipe: occupied cells wear their project's identity tone
+   (same id % 6 order as ProjectCard / joiner avatars, so a project keeps one
+   hue everywhere). Literal strings keep the Tailwind scanner happy. */
+export const PROJECT_CELL_TONES = [
+  "border border-tone-sky/45 bg-tone-sky-soft text-tone-sky-strong",
+  "border border-tone-violet/45 bg-tone-violet-soft text-tone-violet-strong",
+  "border border-tone-emerald/45 bg-tone-emerald-soft text-tone-emerald-strong",
+  "border border-tone-amber/45 bg-tone-amber-soft text-tone-amber-strong",
+  "border border-tone-rose/45 bg-tone-rose-soft text-tone-rose-strong",
+  "border border-tone-cyan/45 bg-tone-cyan-soft text-tone-cyan-strong",
+] as const;
+
 /** Reserved/maintenance carry a glyph beside the number — never color-only. */
 export const SEAT_STATUS_ICONS: Partial<Record<SeatStatus, LucideIcon>> = {
   RESERVED: Lock,
@@ -30,6 +42,12 @@ export const SEAT_STATUS_ICONS: Partial<Record<SeatStatus, LucideIcon>> = {
 interface SeatCellProps {
   seat: Seat;
   onSelect: (seat: Seat) => void;
+  /** Occupant's project — feeds the tooltip and the aria-label. */
+  projectName?: string;
+  /** Project-lens tone index (id % 6); null/undefined keeps status styling. */
+  projectTone?: number | null;
+  /** Project lens: recede reserved/maintenance so team territory reads first. */
+  dimmed?: boolean;
   /** Roving tabindex — the zone grid keeps exactly one tabbable cell. */
   tabIndex?: number;
   /** Lets the zone grid track which cell holds the roving tab stop. */
@@ -45,12 +63,20 @@ interface SeatCellProps {
 export function SeatCell({
   seat,
   onSelect,
+  projectName,
+  projectTone,
+  dimmed = false,
   tabIndex,
   onFocus,
   isOpen = false,
   ref,
 }: SeatCellProps) {
-  const label = `Seat ${seat.seat_code}, Floor ${seat.floor}, ${SEAT_STATUS_LABELS[seat.status]}`;
+  const status = SEAT_STATUS_LABELS[seat.status];
+  const label = `Seat ${seat.seat_code}, Floor ${seat.floor}, ${status}${
+    projectName ? `, ${projectName}` : ""
+  }`;
+  // Single line consumed by the map's shared hover/focus tooltip.
+  const tip = `${seat.seat_code} (${status})${projectName ? ` · ${projectName}` : ""}`;
   const Icon = SEAT_STATUS_ICONS[seat.status];
 
   return (
@@ -60,18 +86,22 @@ export function SeatCell({
       onClick={() => onSelect(seat)}
       onFocus={onFocus}
       tabIndex={tabIndex}
-      title={label}
       aria-label={label}
       data-seat-id={seat.id}
+      data-tip={tip}
       data-state={isOpen ? "open" : "closed"}
       className={cn(
         // 44px touch target on phones, 36px in the dense desktop grid.
-        "text-metric flex size-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg font-mono text-xs font-medium leading-none transition-colors duration-150 md:size-9",
+        "text-metric relative flex size-11 shrink-0 cursor-pointer flex-col items-center justify-center gap-0.5 rounded-lg font-mono text-xs font-medium leading-none transition-[color,background-color,border-color,transform,opacity] duration-150 md:size-9",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
-        // Hover hints interactivity; the open-dialog seat keeps a ring while
-        // its dialog is up so the map shows what the dialog describes.
-        "data-[state=closed]:hover:ring-1 data-[state=closed]:hover:ring-accent-solid data-[state=open]:ring-2 data-[state=open]:ring-ring",
-        SEAT_STATUS_STYLES[seat.status]
+        // Hover pops the cell forward (compositor-only); the open-dialog seat
+        // keeps a ring while its dialog is up so the map shows what the
+        // dialog describes.
+        "hover:z-10 hover:scale-[1.15] focus-visible:z-10 data-[state=closed]:hover:ring-1 data-[state=closed]:hover:ring-accent-solid data-[state=open]:ring-2 data-[state=open]:ring-ring",
+        projectTone != null
+          ? PROJECT_CELL_TONES[projectTone % PROJECT_CELL_TONES.length]
+          : SEAT_STATUS_STYLES[seat.status],
+        dimmed && "opacity-45"
       )}
     >
       {Icon && <Icon className="size-3" aria-hidden="true" />}

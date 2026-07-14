@@ -615,6 +615,39 @@ legend hues with visible gaps; validator runs recorded for light and dark surfac
 
 ---
 
+## 13. Seat Map Elevation (design-taste + ui-ux-pro-max)
+
+**Prompt:** "using /design-taste-frontend and /ui-ux-pro-max look how we can make the seating
+view even more impressive... keep in mind these were the delivery requirements (3.3 Seat
+Allocation)... we should meet them, but no harm in exceeding them."
+
+**AI output / what changed:** (1) **Project lens** — a "Color by: Status / Project" toggle;
+in Project mode occupied cells tint with their project's identity tone (same `id % 6` hue
+order as project cards and joiner avatars), with a per-floor project legend + seat counts, so
+"allocated project" is now visible at map level, not just in the dialog. (2) **Shared
+hover/focus tooltip** (`A2-12 (Occupied) · Indigo`) driven by event delegation and direct
+style writes — one portaled element for all 1,120 cells, zero React re-renders on hover,
+full aria-labels retained. (3) **Occupancy context** — segmented status strip per zone header
+(app-wide status hues) and live occupancy % in each floor tab. (4) **Motion** — bay rows
+stagger-rise on floor switch, cells scale up on hover (compositor-only, reduced-motion safe).
+
+**Correct:** ui-ux-pro-max's heatmap guidance (value on hover, legend with counts, pattern
+fallback for colorblind users) mapped cleanly onto the existing fill-vs-outline + glyph cell
+recipe; the roving-tabindex grid needed no changes.
+
+**Incorrect / judgment call:** with 11 projects and 6 identity tones, two teams on one floor
+can share a hue — the legend, tooltip, and dialog disambiguate, and the seeder clusters ~2-3
+projects per floor, so collisions are rare in practice. First tooltip attempt anchored 272/88px
+off: the route template's `animation-fill-mode: both` retained an identity transform/filter,
+making the wrapper a containing block for position:fixed (see DEBUGGING_NOTES).
+
+**Verification:** live geometry probe (tooltip center == cell center, bottom == cell top - 8);
+screenshots of both lenses in both themes; requirements 3.3 walked item-by-item (floor, zone,
+bay, seat number, 4 statuses, occupant, project, allocation date, duplicate prevention
+untouched server-side).
+
+---
+
 ## Appendix — Scaffolding (Phase 0)
 
 **Prompt:** "Scaffold Next.js (App Router, TS, Tailwind, src dir) frontend and a FastAPI backend

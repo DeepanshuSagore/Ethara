@@ -246,3 +246,22 @@ curl pass matched expectations. Design notes worth recording:
   center via translate utilities — `translate` and `transform` are separate, composing
   properties. Remember the Turbopack gotcha: keyframe edits in globals.css need
   `rm -rf .next` to show up.
+
+### Fixed-position tooltip anchored 272/88px off — the page-enter animation was the culprit
+- **Symptom:** the new seat-map tooltip rendered ~272px right and ~88px below the hovered
+  cell even though its inline transform string was mathematically correct.
+- **Cause:** the route template's `animate-page-enter` used `animation-fill-mode: both`, so
+  after the entrance finished the wrapper retained `transform: translateY(0); filter:
+  blur(0)`. Identity or not, a retained transform/filter makes an element a **containing
+  block for position:fixed descendants** — the tooltip's `fixed left-0 top-0` was anchored
+  to the page wrapper (272px sidebar + 88px topbar/padding), not the viewport. The seat
+  dialog never hit this because Radix portals it to <body>.
+- **Fix:** `fill-mode: backwards` on page-enter (start state only; nothing retained at
+  rest), plus the tooltip is portaled to <body> so no future ancestor effect can re-anchor
+  it.
+- **Verified:** live geometry probe: tooltip center x == cell center x, tooltip bottom ==
+  cell top - 8 exactly.
+- **Lesson:** `fill-mode: both` on wrappers that host fixed/sticky descendants is a trap —
+  after any transform/filter animation completes, every `position: fixed` child silently
+  re-anchors. Fill backwards (or remove the fill) once the end state equals the natural
+  state.
