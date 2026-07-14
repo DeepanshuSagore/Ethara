@@ -2,17 +2,31 @@ name: Keep Render awake
 
 on:
   schedule:
-    # Render free tier spins down after 15 min of inactivity; GitHub cron
-    # often fires a few minutes late, so ping every 10 min for margin.
+    # GitHub runs shared-runner crons best-effort: a */10 schedule fires
+    # roughly hourly in practice. So each RUN carries the cadence instead:
+    # it pings every ~9 minutes for ~45 minutes, which combined with the
+    # roughly-hourly trigger keeps the dyno from ever idling 15 minutes.
     - cron: "*/10 * * * *"
   workflow_dispatch:
+
+concurrency:
+  # If a delayed run overlaps a live one, drop the old one — one pinger
+  # is plenty and this keeps runner minutes flat.
+  group: keep-alive
+  cancel-in-progress: true
 
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 55
     steps:
-      - name: Ping API health endpoint
-        # Generous timeout + retries so a cold start doesn't fail the run.
+      - name: Ping API health endpoint every 9 minutes
+        # Generous timeout + retries so a cold start doesn't fail the run;
+        # 6 pings x 9 min covers ~45 min between best-effort cron firings.
         run: |
-          curl -sSf --max-time 90 --retry 3 --retry-delay 10 --retry-all-errors \
-            https://ethara-api-edmu.onrender.com/health
+          for i in 1 2 3 4 5 6; do
+            curl -sSf --max-time 90 --retry 3 --retry-delay 10 --retry-all-errors \
+              https://ethara-api-edmu.onrender.com/health
+            echo " ping $i ok $(date -u +%H:%M:%S)"
+            [ "$i" -lt 6 ] && sleep 540
+          done
