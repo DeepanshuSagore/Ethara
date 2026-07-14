@@ -2,7 +2,16 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { CircleCheck, MapPin, UserPlus } from "lucide-react";
+import {
+  AlertTriangle,
+  CircleCheck,
+  Clock,
+  Loader2,
+  Map as MapIcon,
+  MapPin,
+  RotateCcw,
+  UserPlus,
+} from "lucide-react";
 import { AddJoinerDialog } from "@/components/employees/add-joiner-dialog";
 import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -22,7 +31,7 @@ import {
   useSeatSuggestions,
 } from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
-import { formatDate, formatNumber, initials } from "@/lib/utils";
+import { cn, formatDate, formatNumber, initials } from "@/lib/utils";
 import type { Employee, SeatSuggestion } from "@/types";
 
 const REASON_LABELS: Record<SeatSuggestion["reason"], string> = {
@@ -67,68 +76,124 @@ function JoinerCard({
   };
 
   const suggestions = suggestionsQuery.data ?? [];
+  // Which chip's allocation is in flight — the spinner goes on that seat only.
+  const pendingSeatId = allocate.isPending ? allocate.variables?.seatId : undefined;
 
   return (
     <Card>
       <CardHeader className="flex-row items-center gap-4 space-y-0">
-        <span className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-accent text-sm font-semibold text-accent-foreground">
+        <span
+          className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-medium text-accent-foreground"
+          aria-hidden="true"
+        >
           {initials(joiner.name)}
         </span>
         <div className="min-w-0 flex-1 space-y-0.5">
-          <CardTitle className="truncate">
-            <Link href={`/employees/${joiner.id}`} className="hover:underline">
+          <CardTitle as="h2" className="truncate font-medium">
+            <Link
+              href={`/employees/${joiner.id}`}
+              className="rounded-md hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+            >
               {joiner.name}
             </Link>
           </CardTitle>
-          <CardDescription>
-            {joiner.role} · {projectName} · joined {formatDate(joiner.joining_date)}
+          <CardDescription className="truncate">
+            {joiner.role} · {projectName ?? "—"} · joined {formatDate(joiner.joining_date)}
           </CardDescription>
         </div>
-        <Badge variant="info">Pending</Badge>
+        <Badge variant="warning">
+          <Clock className="size-3 shrink-0" aria-hidden="true" />
+          Pending
+        </Badge>
       </CardHeader>
       <CardContent>
-        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          <MapPin className="size-3.5" aria-hidden="true" />
+        <p className="mb-2 flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
           Suggested seats
         </p>
         {suggestionsQuery.isPending ? (
-          <div className="flex flex-wrap gap-2">
+          <div
+            role="status"
+            aria-label="Loading seat suggestions"
+            className="flex flex-wrap gap-2"
+          >
             {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} className="h-9 w-36 rounded-lg" />
+              <Skeleton key={i} className="h-6.5 w-44 rounded-full" />
             ))}
           </div>
         ) : suggestionsQuery.isError ? (
-          <p className="text-sm text-muted-foreground">
-            Could not load suggestions — {errorMessage(suggestionsQuery.error)}
-          </p>
+          // An error is not an empty result — destructive tone plus retry.
+          <div
+            role="alert"
+            className="flex items-start gap-2 rounded-lg border border-destructive-strong/20 bg-destructive-soft p-3"
+          >
+            <AlertTriangle
+              className="mt-0.5 size-4 shrink-0 text-destructive-strong"
+              aria-hidden="true"
+            />
+            <div className="space-y-2">
+              <p className="text-sm text-destructive-strong">
+                Could not load seat suggestions — {errorMessage(suggestionsQuery.error)}
+              </p>
+              <Button variant="outline" size="sm" onClick={() => suggestionsQuery.refetch()}>
+                <RotateCcw /> Try again
+              </Button>
+            </div>
+          </div>
         ) : suggestions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No seats available anywhere — release a seat first.
-          </p>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              No seats are available anywhere — release a seat first.
+            </p>
+            <Button asChild variant="outline" size="sm">
+              <Link href="/seats">
+                <MapIcon /> Open seat map
+              </Link>
+            </Button>
+          </div>
         ) : (
           <ul className="flex flex-wrap gap-2">
-            {suggestions.map((suggestion) => (
-              <li key={suggestion.seat.id}>
-                <button
-                  type="button"
-                  disabled={!canManage || allocate.isPending}
-                  onClick={() => handleAllocate(suggestion)}
-                  title={
-                    canManage
-                      ? `Allocate ${suggestion.seat.seat_code} to ${joiner.name}`
-                      : "Switch to Admin/HR to allocate"
-                  }
-                  className="flex items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-sm shadow-soft transition-colors hover:border-primary hover:bg-accent disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:border-border disabled:hover:bg-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                >
-                  <span className="text-metric font-semibold">
-                    {suggestion.seat.seat_code}
-                  </span>
-                  <span className="text-xs text-muted-foreground">
-                    Floor {suggestion.seat.floor} · {REASON_LABELS[suggestion.reason]}
-                  </span>
-                </button>
-              </li>
-            ))}
+            {suggestions.map((suggestion) => {
+              const isAllocating = pendingSeatId === suggestion.seat.id;
+              const disabled = !canManage || allocate.isPending;
+              return (
+                <li key={suggestion.seat.id}>
+                  {/* aria-disabled (not disabled) keeps the chip focusable so
+                      keyboard/AT users hear why it can't be pressed and focus
+                      isn't dropped while an allocation is pending. */}
+                  <button
+                    type="button"
+                    aria-disabled={disabled || undefined}
+                    aria-busy={isAllocating || undefined}
+                    onClick={() => {
+                      if (disabled) return;
+                      handleAllocate(suggestion);
+                    }}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs transition-colors duration-150 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:pointer-events-none",
+                      disabled && !isAllocating && "opacity-50"
+                    )}
+                  >
+                    {isAllocating && (
+                      <Loader2 className="size-3 shrink-0 animate-spin" aria-hidden="true" />
+                    )}
+                    <span className="text-metric font-mono text-xs font-medium">
+                      {suggestion.seat.seat_code}
+                    </span>
+                    <span className="text-muted-foreground">
+                      Floor {suggestion.seat.floor} · {REASON_LABELS[suggestion.reason]}
+                    </span>
+                    <span className="sr-only">
+                      {isAllocating
+                        ? "— allocating…"
+                        : canManage
+                          ? `— allocate to ${joiner.name}`
+                          : "— switch to the Admin or HR role to allocate"}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         )}
       </CardContent>
@@ -147,6 +212,7 @@ export function NewJoinersScreen() {
 
   const header = (
     <PageHeader
+      eyebrow="Onboarding"
       title="New Joiners"
       description={
         canManage
@@ -201,7 +267,7 @@ export function NewJoinersScreen() {
           <CardContent className="p-0">
             <EmptyState
               icon={CircleCheck}
-              iconWrapClassName="bg-success/15 text-success"
+              iconWrapClassName="bg-success-soft text-success-strong"
               title="Queue is clear"
               description="Every new joiner has a seat. Add a new joiner to start an allocation."
               action={
@@ -218,7 +284,7 @@ export function NewJoinersScreen() {
         </Card>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div className="stagger-children grid gap-4 lg:grid-cols-2">
             {pageJoiners.map((joiner) => (
               <JoinerCard
                 key={joiner.id}
@@ -233,7 +299,7 @@ export function NewJoinersScreen() {
             pageCount={pageCount}
             onPageChange={setPage}
             summary={`Showing ${rangeStart}–${rangeEnd} of ${formatNumber(pendingJoiners.length)} pending joiners`}
-            className="mt-4 border-t-0 px-0"
+            className="mt-4"
           />
         </>
       )}

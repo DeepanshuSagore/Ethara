@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useSearchParams } from "next/navigation";
-import { AlertTriangle, RotateCcw, SearchX, UserPlus } from "lucide-react";
+import { Info, Loader2, SearchX, UserPlus } from "lucide-react";
 import { AddJoinerDialog } from "@/components/employees/add-joiner-dialog";
 import {
   ActiveFilterChips,
@@ -16,8 +16,9 @@ import {
   type EmployeeSort,
   type EmployeeSortKey,
 } from "@/components/employees/employee-table";
+import { EmployeeTableSkeleton } from "@/components/employees/employees-skeleton";
+import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
-import { TableSkeleton } from "@/components/layout/skeletons";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -26,7 +27,7 @@ import { errorMessage } from "@/lib/api/client";
 import type { EmployeeListParams } from "@/lib/api/employees";
 import { useEmployees } from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
-import { formatNumber } from "@/lib/utils";
+import { cn, formatNumber } from "@/lib/utils";
 import type { EmployeeStatus } from "@/types";
 
 const PAGE_SIZE = 25;
@@ -101,17 +102,20 @@ export function EmployeesScreen() {
     : `Showing ${formatNumber(rangeStart)}–${formatNumber(rangeEnd)} of ${formatNumber(rangeEnd)} matches`;
 
   const activeFilterCount = countActiveFilters(filters);
+  // keepPreviousData shows stale rows during a refetch — surface that.
+  const isRefreshing = employeesQuery.isFetching && !employeesQuery.isPending;
 
   return (
     <>
       <PageHeader
+        eyebrow="Directory"
         title="Employees"
         description="Directory of all employees with search, filters and seat status."
         actions={
           canManage ? (
             <AddJoinerDialog>
               <Button>
-                <UserPlus /> Add employee
+                <UserPlus /> Add new joiner
               </Button>
             </AddJoinerDialog>
           ) : undefined
@@ -122,52 +126,78 @@ export function EmployeesScreen() {
         <EmployeeFilters filters={filters} onChange={updateFilters} />
         <ActiveFilterChips filters={filters} onChange={updateFilters} />
 
-        <Card>
-          <CardContent className="p-0">
-            {employeesQuery.isError ? (
-              <EmptyState
-                icon={AlertTriangle}
-                iconWrapClassName="bg-destructive/10 text-destructive"
-                title="Could not load employees"
-                description={`The Ethara API did not respond — ${errorMessage(employeesQuery.error)}`}
-                action={
-                  <Button onClick={() => employeesQuery.refetch()}>
-                    <RotateCcw /> Try again
-                  </Button>
-                }
-              />
-            ) : employeesQuery.isPending ? (
-              <TableSkeleton rows={10} columns={7} />
-            ) : pageRows.length === 0 && page === 1 ? (
-              <EmptyState
-                icon={SearchX}
-                title="No employees found"
-                description={
-                  activeFilterCount > 0
-                    ? "Nothing in the directory matches the current search and filters."
-                    : "The directory is empty — add an employee to get started."
-                }
-                action={
-                  activeFilterCount > 0 ? (
-                    <Button variant="outline" onClick={() => updateFilters(DEFAULT_EMPLOYEE_FILTERS)}>
-                      Clear all filters
-                    </Button>
-                  ) : undefined
-                }
-              />
-            ) : (
-              <>
-                <EmployeeTable employees={pageRows} sort={sort} onSortChange={toggleSort} />
-                <PaginationBar
-                  page={page}
-                  hasNext={hasNext}
-                  onPageChange={setPage}
-                  summary={summary}
+        {employeesQuery.isError ? (
+          <ErrorState
+            title="Could not load employees"
+            description="The Ethara API did not respond. Check that the backend is running, then try again."
+            detail={errorMessage(employeesQuery.error)}
+            onRetry={() => employeesQuery.refetch()}
+          />
+        ) : (
+          <Card>
+            <CardContent className="p-0">
+              {employeesQuery.isPending ? (
+                <EmployeeTableSkeleton rows={10} />
+              ) : pageRows.length === 0 ? (
+                <EmptyState
+                  icon={SearchX}
+                  title="No employees found"
+                  description={
+                    page > 1
+                      ? "This page is past the end of the results — they finish on an earlier page."
+                      : activeFilterCount > 0
+                        ? "Nothing in the directory matches the current search and filters."
+                        : "The directory is empty — add a new joiner to get started."
+                  }
+                  action={
+                    page > 1 ? (
+                      <Button variant="outline" onClick={() => setPage(1)}>
+                        Go to first page
+                      </Button>
+                    ) : activeFilterCount > 0 ? (
+                      <Button
+                        variant="outline"
+                        onClick={() => updateFilters(DEFAULT_EMPLOYEE_FILTERS)}
+                      >
+                        Clear all filters
+                      </Button>
+                    ) : undefined
+                  }
                 />
-              </>
-            )}
-          </CardContent>
-        </Card>
+              ) : (
+                <>
+                  {/* Sorting is page-local (the API has no sort param) — say
+                      so next to the affordance; refetch progress lives here
+                      too so stale keepPreviousData rows are never silent. */}
+                  <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-border px-4 py-2">
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Info className="size-3.5 shrink-0" aria-hidden="true" />
+                      Sorting applies to the current page only.
+                    </p>
+                    {isRefreshing && (
+                      <p
+                        role="status"
+                        className="flex items-center gap-1.5 text-xs text-muted-foreground"
+                      >
+                        <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden="true" />
+                        Updating results…
+                      </p>
+                    )}
+                  </div>
+                  <div aria-busy={isRefreshing || undefined} className={cn(isRefreshing && "opacity-60")}>
+                    <EmployeeTable employees={pageRows} sort={sort} onSortChange={toggleSort} />
+                  </div>
+                  <PaginationBar
+                    page={page}
+                    hasNext={hasNext}
+                    onPageChange={setPage}
+                    summary={summary}
+                  />
+                </>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </div>
     </>
   );

@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowDown, ArrowUp, ArrowUpDown } from "lucide-react";
+import { ChevronDown, ChevronsUpDown, ChevronUp } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -14,6 +14,7 @@ import {
 import { EmployeeStatusBadge } from "@/components/employees/employee-status-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useProjects, useSeatIndex } from "@/lib/api/hooks";
+import { cn } from "@/lib/utils";
 import type { Employee } from "@/types";
 
 export type EmployeeSortKey = "name" | "employee_code" | "department";
@@ -37,25 +38,32 @@ function SortableHead({
   sortKey,
   sort,
   onSortChange,
+  className,
 }: {
   label: string;
   sortKey: EmployeeSortKey;
   sort: EmployeeSort | null | undefined;
   onSortChange: (key: EmployeeSortKey) => void;
+  className?: string;
 }) {
   const active = sort?.key === sortKey;
-  const Icon = active ? (sort.dir === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
+  const Icon = active ? (sort.dir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
 
   return (
-    <TableHead aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}>
+    <TableHead
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
+      className={className}
+    >
+      {/* -mx-3 + h-10 grow the button to the full header cell so the sorting
+          control isn't a cramped sub-30px target. */}
       <button
         type="button"
         onClick={() => onSortChange(sortKey)}
-        className="-mx-1.5 inline-flex items-center gap-1 rounded-md px-1.5 py-1 uppercase tracking-wide transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="-mx-3 inline-flex h-10 cursor-pointer items-center gap-1 rounded-lg px-3 uppercase tracking-wider transition-colors duration-150 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       >
         {label}
         <Icon
-          className={active ? "size-3.5 text-primary" : "size-3.5 opacity-50"}
+          className={cn("size-3.5 shrink-0", active ? "text-foreground" : "text-muted-foreground")}
           aria-hidden="true"
         />
         <span className="sr-only">
@@ -82,28 +90,37 @@ export function EmployeeTable({
   const projectsById = new Map((projects ?? []).map((p) => [p.id, p]));
 
   return (
-    <Table>
+    // The explicit min-w makes the primitive's overflow-x-auto wrapper scroll
+    // on phones instead of crushing columns; department/role fold away below
+    // md (role moves into the name cell's second line).
+    <Table aria-label="Employees" className="min-w-160 md:min-w-4xl">
       <TableHeader>
         <TableRow>
           {onSortChange ? (
             <>
               <SortableHead label="Employee" sortKey="name" sort={sort} onSortChange={onSortChange} />
-              <SortableHead label="Code" sortKey="employee_code" sort={sort} onSortChange={onSortChange} />
+              <SortableHead
+                label="Code"
+                sortKey="employee_code"
+                sort={sort}
+                onSortChange={onSortChange}
+              />
               <SortableHead
                 label="Department"
                 sortKey="department"
                 sort={sort}
                 onSortChange={onSortChange}
+                className="hidden md:table-cell"
               />
             </>
           ) : (
             <>
               <TableHead>Employee</TableHead>
               <TableHead>Code</TableHead>
-              <TableHead>Department</TableHead>
+              <TableHead className="hidden md:table-cell">Department</TableHead>
             </>
           )}
-          <TableHead>Role</TableHead>
+          <TableHead className="hidden md:table-cell">Role</TableHead>
           {showProject && <TableHead>Project</TableHead>}
           <TableHead>Status</TableHead>
           <TableHead>Seat</TableHead>
@@ -116,34 +133,47 @@ export function EmployeeTable({
             <TableRow
               key={employee.id}
               className="cursor-pointer"
-              onClick={() => router.push(`/employees/${employee.id}`)}
+              onClick={() => {
+                // Don't hijack a text selection (emails, codes) as navigation.
+                if (window.getSelection()?.toString()) return;
+                router.push(`/employees/${employee.id}`);
+              }}
             >
               <TableCell>
                 <Link
                   href={`/employees/${employee.id}`}
-                  className="font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+                  className="rounded-md font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                   onClick={(e) => e.stopPropagation()}
                 >
                   {employee.name}
                 </Link>
-                <p className="text-xs text-muted-foreground">{employee.email}</p>
+                <p className="text-xs text-muted-foreground">
+                  <span className="md:hidden">{employee.role} · </span>
+                  <span className="font-mono">{employee.email}</span>
+                </p>
               </TableCell>
-              <TableCell className="text-metric text-muted-foreground">
+              <TableCell className="text-metric whitespace-nowrap font-mono text-xs font-medium text-muted-foreground">
                 {employee.employee_code}
               </TableCell>
-              <TableCell>{employee.department}</TableCell>
-              <TableCell className="text-muted-foreground">{employee.role}</TableCell>
+              <TableCell className="hidden md:table-cell">{employee.department}</TableCell>
+              <TableCell className="hidden text-muted-foreground md:table-cell">
+                {employee.role}
+              </TableCell>
               {showProject && (
-                <TableCell>{projectsById.get(employee.project_id)?.name ?? "—"}</TableCell>
+                <TableCell>
+                  {projectsById.get(employee.project_id)?.name ?? (
+                    <span className="text-muted-foreground">—</span>
+                  )}
+                </TableCell>
               )}
               <TableCell>
                 <EmployeeStatusBadge status={employee.status} />
               </TableCell>
-              <TableCell className="text-metric">
+              <TableCell className="text-metric font-mono text-xs font-medium">
                 {seat ? (
                   <span className="whitespace-nowrap">
                     {seat.seat_code}
-                    <span className="text-xs text-muted-foreground"> · F{seat.floor}</span>
+                    <span className="text-muted-foreground"> · F{seat.floor}</span>
                   </span>
                 ) : seatIndexLoading ? (
                   <Skeleton className="h-4 w-14" />

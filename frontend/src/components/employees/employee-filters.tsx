@@ -49,73 +49,97 @@ interface EmployeeFiltersProps {
   onChange: (filters: EmployeeFilterState) => void;
 }
 
+/** Visible label above each filter control — a chosen value always has an
+    on-screen name (htmlFor on the select triggers works: they're buttons). */
+function FilterLabel({ htmlFor, children }: { htmlFor: string; children: React.ReactNode }) {
+  return (
+    <label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">
+      {children}
+    </label>
+  );
+}
+
 export function EmployeeFilters({ filters, onChange }: EmployeeFiltersProps) {
   const { data: projects } = useProjects();
 
   return (
-    <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_repeat(3,minmax(0,180px))]">
-      <div className="relative">
-        <Search
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
-          aria-hidden="true"
-        />
-        <Input
-          type="search"
-          value={filters.search}
-          onChange={(e) => onChange({ ...filters, search: e.target.value })}
-          placeholder="Search by name, code or email…"
-          className="pl-9"
-          aria-label="Search employees"
-        />
+    // The search input keeps flexible priority width at md+; the three
+    // selects get a bounded 9–11rem track each.
+    <div className="grid grid-cols-1 gap-3 md:grid-cols-[minmax(0,1fr)_repeat(3,minmax(9rem,11rem))]">
+      <div className="space-y-1.5">
+        <FilterLabel htmlFor="employee-search">Search</FilterLabel>
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            id="employee-search"
+            type="search"
+            value={filters.search}
+            onChange={(e) => onChange({ ...filters, search: e.target.value })}
+            placeholder="Search by name, code or email…"
+            className="pl-9"
+          />
+        </div>
       </div>
 
-      <Select
-        value={filters.department}
-        onValueChange={(department) => onChange({ ...filters, department })}
-      >
-        <SelectTrigger aria-label="Filter by department">
-          <SelectValue placeholder="Department" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All departments</SelectItem>
-          {DEPARTMENTS.map((dept) => (
-            <SelectItem key={dept} value={dept}>
-              {dept}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="space-y-1.5">
+        <FilterLabel htmlFor="employee-filter-department">Department</FilterLabel>
+        <Select
+          value={filters.department}
+          onValueChange={(department) => onChange({ ...filters, department })}
+        >
+          <SelectTrigger id="employee-filter-department">
+            <SelectValue placeholder="All departments" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All departments</SelectItem>
+            {DEPARTMENTS.map((dept) => (
+              <SelectItem key={dept} value={dept}>
+                {dept}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Select
-        value={filters.projectId}
-        onValueChange={(projectId) => onChange({ ...filters, projectId })}
-      >
-        <SelectTrigger aria-label="Filter by project">
-          <SelectValue placeholder="Project" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All projects</SelectItem>
-          {(projects ?? []).map((project) => (
-            <SelectItem key={project.id} value={String(project.id)}>
-              {project.name}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="space-y-1.5">
+        <FilterLabel htmlFor="employee-filter-project">Project</FilterLabel>
+        <Select
+          value={filters.projectId}
+          onValueChange={(projectId) => onChange({ ...filters, projectId })}
+        >
+          <SelectTrigger id="employee-filter-project">
+            <SelectValue placeholder="All projects" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All projects</SelectItem>
+            {(projects ?? []).map((project) => (
+              <SelectItem key={project.id} value={String(project.id)}>
+                {project.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-      <Select value={filters.status} onValueChange={(status) => onChange({ ...filters, status })}>
-        <SelectTrigger aria-label="Filter by status">
-          <SelectValue placeholder="Status" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="all">All statuses</SelectItem>
-          {EMPLOYEE_STATUSES.map((status) => (
-            <SelectItem key={status} value={status}>
-              {STATUS_LABELS[status]}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <div className="space-y-1.5">
+        <FilterLabel htmlFor="employee-filter-status">Status</FilterLabel>
+        <Select value={filters.status} onValueChange={(status) => onChange({ ...filters, status })}>
+          <SelectTrigger id="employee-filter-status">
+            <SelectValue placeholder="All statuses" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {EMPLOYEE_STATUSES.map((status) => (
+              <SelectItem key={status} value={status}>
+                {STATUS_LABELS[status]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
     </div>
   );
 }
@@ -162,19 +186,19 @@ export function ActiveFilterChips({ filters, onChange }: EmployeeFiltersProps) {
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-sm text-muted-foreground">
+      <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
         {chips.length} {chips.length === 1 ? "filter" : "filters"} active
-      </span>
+      </p>
       {chips.map((chip) => (
         <button
           key={chip.key}
           type="button"
           onClick={chip.clear}
           aria-label={`Remove filter — ${chip.label}`}
-          className="flex items-center gap-1.5 rounded-full border border-border bg-card py-1 pl-3 pr-2 text-xs font-medium shadow-soft transition-colors hover:border-primary hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-card px-2.5 py-1 text-xs font-medium transition-colors duration-150 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
           {chip.label}
-          <X className="size-3 text-muted-foreground" aria-hidden="true" />
+          <X className="size-3 shrink-0 text-muted-foreground" aria-hidden="true" />
         </button>
       ))}
       <Button

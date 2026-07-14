@@ -21,13 +21,15 @@ export function RoleSwitcher() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2" aria-label="Switch demo role">
-          <UserCircle2 className="size-4 text-primary" />
+        {/* Accessible name comes from the visible "Viewing as {role}" text
+            (label-in-name); default size matches the 40px theme toggle. */}
+        <Button variant="outline" className="gap-2">
+          <UserCircle2 className="text-primary" aria-hidden="true" />
           <span className="hidden sm:inline">Viewing as</span>
           <Badge variant="accent" className="px-2">
             {role}
           </Badge>
-          <ChevronsUpDown className="size-3.5 text-muted-foreground" />
+          <ChevronsUpDown className="text-muted-foreground" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-72">

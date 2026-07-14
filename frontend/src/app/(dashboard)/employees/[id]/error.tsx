@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { ErrorState } from "@/components/layout/error-state";
+import { PageHeader } from "@/components/layout/page-header";
 
 interface ErrorProps {
   error: Error & { digest?: string };
@@ -15,13 +16,20 @@ export default function EmployeeDetailError({ error, unstable_retry, reset }: Er
   }, [error]);
 
   return (
-    <ErrorState
-      title="Couldn't load this employee"
-      description="The employee profile failed to render. Try again, or go back to the directory."
-      detail={error.digest ? `Error digest: ${error.digest}` : error.message}
-      onRetry={unstable_retry ?? reset}
-      backHref="/employees"
-      backLabel="Back to employees"
-    />
+    <>
+      {/* Keep an h1 so the error page's heading outline stays intact. */}
+      <PageHeader
+        title="Something went wrong"
+        description="This employee profile hit an unexpected error while rendering."
+      />
+      <ErrorState
+        title="Couldn't load this employee"
+        description="The employee profile failed to render. Try again, or go back to the directory."
+        detail={error.digest ? `Error digest: ${error.digest}` : error.message}
+        onRetry={unstable_retry ?? reset}
+        backHref="/employees"
+        backLabel="Back to employees"
+      />
+    </>
   );
 }

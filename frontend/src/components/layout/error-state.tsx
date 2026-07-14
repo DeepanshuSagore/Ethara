@@ -16,7 +16,7 @@ interface ErrorStateProps {
   backLabel?: string;
 }
 
-/** Shared body for the route error.tsx boundaries — matches the not-found cards. */
+/** Shared body for query failures and the route error.tsx boundaries. */
 export function ErrorState({
   title,
   description,
@@ -26,22 +26,23 @@ export function ErrorState({
   backLabel,
 }: ErrorStateProps) {
   return (
-    <Card>
+    // role="alert" announces the async swap from content/skeleton to error.
+    <Card role="alert">
       <CardContent className="p-0">
         <EmptyState
           icon={AlertTriangle}
-          iconWrapClassName="bg-destructive/10 text-destructive"
+          iconWrapClassName="bg-destructive-soft text-destructive-strong"
           title={title}
           description={description}
           action={
             <>
               {onRetry && (
-                <Button onClick={onRetry}>
-                  <RotateCcw /> Try again
+                <Button variant="outline" onClick={onRetry}>
+                  <RotateCcw aria-hidden="true" /> Try again
                 </Button>
               )}
               {backHref && (
-                <Button asChild variant="outline">
+                <Button asChild variant="ghost">
                   <Link href={backHref}>{backLabel ?? "Go back"}</Link>
                 </Button>
               )}
@@ -49,7 +50,7 @@ export function ErrorState({
           }
         />
         {detail && (
-          <p className="border-t border-border px-6 py-3 text-center font-mono text-xs text-muted-foreground">
+          <p className="wrap-break-word border-t border-border px-6 py-3 text-center font-mono text-xs text-muted-foreground">
             {detail}
           </p>
         )}

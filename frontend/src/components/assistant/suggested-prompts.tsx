@@ -14,14 +14,22 @@ interface SuggestedPromptsProps {
 
 export function SuggestedPrompts({ onPick, disabled }: SuggestedPromptsProps) {
   return (
-    <div className="flex flex-wrap gap-2">
+    /* p-1/-m-1 gives the focus ring room inside the horizontal scroller. */
+    <div
+      role="group"
+      aria-label="Suggested prompts"
+      className="-m-1 flex gap-2 overflow-x-auto p-1 sm:flex-wrap"
+    >
       {SUGGESTED_PROMPTS.map((prompt) => (
         <button
           key={prompt}
           type="button"
-          disabled={disabled}
-          onClick={() => onPick(prompt)}
-          className="rounded-full border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground shadow-soft transition-colors hover:border-primary hover:text-foreground disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-disabled={disabled ? true : undefined}
+          onClick={() => {
+            if (disabled) return;
+            onPick(prompt);
+          }}
+          className="shrink-0 cursor-pointer whitespace-nowrap rounded-full border bg-card px-3 py-1.5 text-xs text-muted-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background aria-disabled:pointer-events-none aria-disabled:opacity-50"
         >
           {prompt}
         </button>

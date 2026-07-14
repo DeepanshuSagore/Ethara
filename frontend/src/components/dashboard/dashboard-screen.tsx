@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import {
+  AlertTriangle,
   Armchair,
   CircleCheck,
   DoorOpen,
@@ -13,10 +14,11 @@ import { BarList } from "@/components/charts/bar-list";
 import { DonutStat } from "@/components/charts/donut-stat";
 import { StatCard } from "@/components/charts/stat-card";
 import { ErrorState } from "@/components/layout/error-state";
-import { PageHeader } from "@/components/layout/page-header";
+import { PageHeader, SectionHeading } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import DashboardLoading from "@/app/(dashboard)/loading";
 import { errorMessage } from "@/lib/api/client";
 import {
@@ -26,7 +28,11 @@ import {
   useProjects,
   useProjectUtilization,
 } from "@/lib/api/hooks";
-import { formatDate, formatNumber } from "@/lib/utils";
+import { cn, formatDate, formatNumber } from "@/lib/utils";
+
+/* Queue-row skeleton widths — keep in sync with app/(dashboard)/loading.tsx. */
+const QUEUE_NAME_WIDTHS = ["w-32", "w-40", "w-28", "w-36"];
+const QUEUE_META_WIDTHS = ["w-44", "w-36", "w-48", "w-40"];
 
 export function DashboardScreen() {
   const summary = useDashboardSummary();
@@ -41,6 +47,7 @@ export function DashboardScreen() {
     return (
       <>
         <PageHeader
+          eyebrow="Overview"
           title="Dashboard"
           description="Live overview of seats, occupancy and allocation across Ethara."
         />
@@ -66,41 +73,43 @@ export function DashboardScreen() {
   const projectsById = new Map((projects.data ?? []).map((p) => [p.id, p]));
   const joiners = pendingJoiners.data ?? [];
   const seatsPerFloor = floorUtilization.data[0]?.total ?? 0;
+  const queueFailed = pendingJoiners.isError || projects.isError;
 
+  /* Raw numbers, not formatted strings — StatCard counts them up on load. */
   const stats = [
     {
       label: "Total Employees",
-      value: formatNumber(metrics.total_employees),
+      value: metrics.total_employees,
       icon: Users,
       hint: `across ${projectUtilization.data.length} projects`,
     },
     {
       label: "Total Seats",
-      value: formatNumber(metrics.total_seats),
+      value: metrics.total_seats,
       icon: Armchair,
       hint: `${floorUtilization.data.length} floors · ${floorUtilization.data.length * 2} zones`,
     },
     {
       label: "Occupied",
-      value: formatNumber(metrics.occupied),
+      value: metrics.occupied,
       icon: DoorOpen,
       hint: `${metrics.utilization_pct}% utilization`,
     },
     {
       label: "Available",
-      value: formatNumber(metrics.available),
+      value: metrics.available,
       icon: CircleCheck,
       hint: "ready to allocate",
     },
     {
       label: "Reserved / Maintenance",
-      value: formatNumber(metrics.reserved + metrics.maintenance),
+      value: metrics.reserved + metrics.maintenance,
       icon: Lock,
       hint: "blocked from allocation",
     },
     {
       label: "Pending Allocation",
-      value: formatNumber(metrics.pending_joiners),
+      value: metrics.pending_joiners,
       icon: UserPlus,
       hint: "new joiners awaiting seats",
     },
@@ -109,18 +118,30 @@ export function DashboardScreen() {
   return (
     <>
       <PageHeader
+        eyebrow="Overview"
         title="Dashboard"
         description="Live overview of seats, occupancy and allocation across Ethara."
-        actions={<Badge variant="outline">Live API · recomputed on every allocation</Badge>}
+        actions={
+          <Badge variant="outline" className="whitespace-nowrap">
+            <span className="size-1.5 shrink-0 rounded-full bg-success" aria-hidden="true" />
+            <span className="sr-only">Live</span>
+            Live API
+            <span className="hidden text-muted-foreground md:inline">
+              · recomputed on every allocation
+            </span>
+          </Badge>
+        }
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+      <SectionHeading index="01" title="Capacity" />
+      <div className="stagger-children grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
         {stats.map((stat) => (
           <StatCard key={stat.label} {...stat} />
         ))}
       </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-3">
+      <SectionHeading index="02" title="Allocation" className="pt-8" />
+      <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle>Project-wise allocation</CardTitle>
@@ -145,7 +166,7 @@ export function DashboardScreen() {
               <CardTitle>Seat utilization</CardTitle>
               <CardDescription>Occupied share of all seats</CardDescription>
             </CardHeader>
-            <CardContent className="flex items-center justify-center pb-8">
+            <CardContent className="flex items-center justify-center">
               <DonutStat pct={metrics.utilization_pct} label="occupied" />
             </CardContent>
           </Card>
@@ -158,40 +179,77 @@ export function DashboardScreen() {
                   {formatNumber(metrics.pending_joiners)} awaiting seat allocation
                 </CardDescription>
               </div>
-              <Button asChild variant="outline" size="sm">
+              <Button asChild>
                 <Link href="/new-joiners">View queue</Link>
               </Button>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {joiners.length === 0 ? (
+            <CardContent aria-live="polite">
+              {queueFailed ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-destructive-strong/20 bg-destructive-soft px-3 py-2.5">
+                  <p className="flex items-center gap-2 text-sm text-destructive-strong">
+                    <AlertTriangle className="size-4 shrink-0" aria-hidden="true" />
+                    Could not load the pending queue.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      if (pendingJoiners.isError) void pendingJoiners.refetch();
+                      if (projects.isError) void projects.refetch();
+                    }}
+                  >
+                    Retry
+                  </Button>
+                </div>
+              ) : pendingJoiners.isPending ? (
+                <div
+                  role="status"
+                  aria-label="Loading the pending queue…"
+                  className="-mx-2 space-y-1"
+                >
+                  {QUEUE_NAME_WIDTHS.map((width, i) => (
+                    <div key={width} className="px-2 py-1.5">
+                      <Skeleton className={cn("h-5", width)} />
+                      <Skeleton className={cn("mt-0.5 h-4", QUEUE_META_WIDTHS[i])} />
+                    </div>
+                  ))}
+                </div>
+              ) : joiners.length === 0 ? (
                 <p className="flex items-center gap-2 text-sm text-muted-foreground">
                   <CircleCheck className="size-4 shrink-0 text-success" aria-hidden="true" />
-                  {pendingJoiners.isPending
-                    ? "Loading the queue…"
-                    : "Queue is clear — every new joiner has a seat."}
+                  Queue is clear — every new joiner has a seat.
                 </p>
               ) : (
-                joiners.slice(0, 4).map((joiner) => (
-                  <div key={joiner.id} className="flex items-center justify-between gap-3 text-sm">
-                    <Link
-                      href={`/employees/${joiner.id}`}
-                      className="truncate font-medium hover:underline"
-                    >
-                      {joiner.name}
-                    </Link>
-                    <span className="shrink-0 text-xs text-muted-foreground">
-                      {projectsById.get(joiner.project_id)?.name} · joined{" "}
-                      {formatDate(joiner.joining_date)}
-                    </span>
-                  </div>
-                ))
+                <ul className="-mx-2 space-y-1">
+                  {joiners.slice(0, 4).map((joiner) => {
+                    const projectName = projectsById.get(joiner.project_id)?.name;
+                    return (
+                      <li key={joiner.id}>
+                        <Link
+                          href={`/employees/${joiner.id}`}
+                          className="block cursor-pointer rounded-lg px-2 py-1.5 transition-colors duration-150 hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+                        >
+                          <span className="block truncate text-sm font-medium">
+                            {joiner.name}
+                          </span>
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {projectName ? `${projectName} · ` : ""}joined{" "}
+                            <time className="font-mono" dateTime={joiner.joining_date}>
+                              {formatDate(joiner.joining_date)}
+                            </time>
+                          </span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
               )}
             </CardContent>
           </Card>
         </div>
       </div>
 
-      <Card className="mt-4">
+      <SectionHeading index="03" title="Floor occupancy" className="pt-8" />
+      <Card>
         <CardHeader>
           <CardTitle>Floor-wise occupancy</CardTitle>
           <CardDescription>
@@ -200,6 +258,7 @@ export function DashboardScreen() {
         </CardHeader>
         <CardContent>
           <BarList
+            max={100}
             items={floorUtilization.data.map((stat) => ({
               key: String(stat.floor),
               label: `Floor ${stat.floor}`,

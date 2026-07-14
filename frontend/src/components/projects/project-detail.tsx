@@ -2,7 +2,16 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowLeft, Armchair, FolderX, MapPin, UserRound, Users } from "lucide-react";
+import {
+  ArrowLeft,
+  Armchair,
+  FolderX,
+  MapPin,
+  RotateCcw,
+  UserRound,
+  Users,
+  type LucideIcon,
+} from "lucide-react";
 import { StatCard } from "@/components/charts/stat-card";
 import { EmployeeTable } from "@/components/employees/employee-table";
 import { ErrorState } from "@/components/layout/error-state";
@@ -23,11 +32,85 @@ import { formatNumber } from "@/lib/utils";
 
 const PAGE_SIZE = 25;
 
+/** The one back-to-projects treatment, used everywhere the action appears. */
+function BackToProjects() {
+  return (
+    <Button asChild variant="ghost" size="sm">
+      <Link href="/projects">
+        <ArrowLeft /> All projects
+      </Link>
+    </Button>
+  );
+}
+
+/**
+ * Stat card for prose values (names, locations) — annotation-style label with
+ * a body-scale value, never the mono metric treatment reserved for numbers.
+ */
+function ProseStatCard({
+  label,
+  value,
+  hint,
+  icon: Icon,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  icon: LucideIcon;
+}) {
+  return (
+    <Card>
+      <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          {label}
+        </p>
+        <Icon className="size-4 text-primary" aria-hidden="true" />
+      </CardHeader>
+      <CardContent>
+        <p className="truncate text-base font-medium" title={value}>
+          {value}
+        </p>
+        {hint && <p className="mt-1 text-xs text-muted-foreground">{hint}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ProjectNotFound({ id }: { id: number }) {
+  return (
+    <>
+      <PageHeader
+        title="Project not found"
+        description="The project you asked for is not in the directory."
+        actions={<BackToProjects />}
+      />
+      <Card>
+        <CardContent className="p-0">
+          <EmptyState
+            icon={FolderX}
+            title="This project doesn't exist"
+            description={`No project with id ${id} is in the directory — it may have been removed, or the link is out of date.`}
+            action={<BackToProjects />}
+          />
+        </CardContent>
+      </Card>
+    </>
+  );
+}
+
 export function ProjectDetail({ id }: { id: number }) {
   const projectQuery = useProject(id);
   const utilizationQuery = useProjectUtilization();
   const membersQuery = useProjectEmployees(id);
   const [page, setPage] = React.useState(1);
+
+  // Reset paging when navigating between projects so a new project never
+  // opens mid-table on the previous project's page number.
+  const [prevId, setPrevId] = React.useState(id);
+  if (prevId !== id) {
+    setPrevId(id);
+    setPage(1);
+  }
 
   const invalidId = !Number.isInteger(id) || id <= 0;
   if (invalidId || projectQuery.isError) {
@@ -35,41 +118,56 @@ export function ProjectDetail({ id }: { id: number }) {
       invalidId ||
       (projectQuery.error instanceof ApiError && projectQuery.error.status === 404)
     ) {
-      return (
-        <Card>
-          <CardContent className="p-0">
-            <EmptyState
-              icon={FolderX}
-              title="Project not found"
-              description={`No project with id ${id} exists.`}
-              action={
-                <Button asChild variant="outline">
-                  <Link href="/projects">
-                    <ArrowLeft /> Back to projects
-                  </Link>
-                </Button>
-              }
-            />
-          </CardContent>
-        </Card>
-      );
+      return <ProjectNotFound id={id} />;
     }
     return (
-      <ErrorState
-        title="Could not load this project"
-        description="The Ethara API did not respond. Check that the backend is running, then try again."
-        detail={errorMessage(projectQuery.error)}
-        onRetry={() => projectQuery.refetch()}
-        backHref="/projects"
-        backLabel="Back to projects"
-      />
+      <>
+        <PageHeader
+          eyebrow="Portfolio"
+          title="Project"
+          description="Headcount, seats and team members for this project."
+          actions={<BackToProjects />}
+        />
+        <ErrorState
+          title="Could not load this project"
+          description="The Ethara API did not respond. Check that the backend is running, then try again."
+          detail={errorMessage(projectQuery.error)}
+          onRetry={() => projectQuery.refetch()}
+        />
+      </>
     );
   }
 
-  const project = projectQuery.data;
-  const stats = utilizationQuery.data?.find((s) => s.project.id === id);
-  if (!project || !stats) {
+  if (projectQuery.isPending || utilizationQuery.isPending) {
     return <ProjectDetailLoading />;
+  }
+
+  const project = projectQuery.data;
+
+  if (utilizationQuery.isError) {
+    return (
+      <>
+        <PageHeader
+          eyebrow="Portfolio"
+          title={project?.name ?? "Project"}
+          description={project?.description}
+          actions={<BackToProjects />}
+        />
+        <ErrorState
+          title="Could not load project stats"
+          description="The utilization metrics for this project failed to fetch. Check that the backend is running, then try again."
+          detail={errorMessage(utilizationQuery.error)}
+          onRetry={() => utilizationQuery.refetch()}
+        />
+      </>
+    );
+  }
+
+  const stats = utilizationQuery.data?.find((s) => s.project.id === id);
+  // Both queries have settled: a project absent from the utilization response
+  // is a missing project, not a loading state — never an eternal skeleton.
+  if (!project || !stats) {
+    return <ProjectNotFound id={id} />;
   }
 
   // Matches the mock semantics: EXITED members are out of the headcount.
@@ -85,37 +183,32 @@ export function ProjectDetail({ id }: { id: number }) {
   return (
     <>
       <PageHeader
+        eyebrow="Portfolio"
         title={project.name}
         description={project.description}
-        actions={
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/projects">
-              <ArrowLeft /> All projects
-            </Link>
-          </Button>
-        }
+        actions={<BackToProjects />}
       />
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
           label="Headcount"
-          value={formatNumber(stats.headcount)}
+          value={stats.headcount}
           hint={pending > 0 ? `${formatNumber(pending)} pending allocation` : "all mapped"}
           icon={Users}
         />
         <StatCard
           label="Seats allocated"
-          value={formatNumber(stats.seated)}
+          value={stats.seated}
           hint={`${stats.headcount === 0 ? 0 : Math.round((stats.seated / stats.headcount) * 100)}% of team seated`}
           icon={Armchair}
         />
-        <StatCard
+        <ProseStatCard
           label="Team location"
-          value={`Floor ${stats.home_zone[0]} · ${stats.home_zone[1]}`}
+          value={`Floor ${stats.home_zone[0]} · Zone ${stats.home_zone[1]}`}
           hint="primary zone"
           icon={MapPin}
         />
-        <StatCard
+        <ProseStatCard
           label="Manager"
           value={project.manager_name}
           hint="project lead"
@@ -125,17 +218,21 @@ export function ProjectDetail({ id }: { id: number }) {
 
       <Card className="mt-6">
         <CardHeader>
-          <CardTitle>Team members</CardTitle>
+          <CardTitle as="h2">Team members</CardTitle>
           <CardDescription>Everyone mapped to {project.name}, with their seats</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           {membersQuery.isError ? (
             <EmptyState
               icon={FolderX}
-              iconWrapClassName="bg-destructive/10 text-destructive"
+              iconWrapClassName="bg-destructive-soft text-destructive-strong"
               title="Could not load the team"
               description={`Member list failed to fetch — ${errorMessage(membersQuery.error)}`}
-              action={<Button onClick={() => membersQuery.refetch()}>Try again</Button>}
+              action={
+                <Button onClick={() => membersQuery.refetch()}>
+                  <RotateCcw /> Try again
+                </Button>
+              }
             />
           ) : membersQuery.isPending ? (
             <TableSkeleton rows={8} columns={6} />

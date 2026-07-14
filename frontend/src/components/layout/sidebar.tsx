@@ -12,24 +12,32 @@ interface SidebarProps {
   onNavigate?: () => void;
 }
 
+const focusRing =
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background";
+
 export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarProps) {
   const pathname = usePathname();
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Brand */}
-      <div className={cn("flex h-16 items-center border-b border-border px-4", collapsed && "justify-center px-2")}>
+      <div
+        className={cn(
+          "flex h-16 shrink-0 items-center border-b border-border px-4",
+          collapsed && "justify-center px-2"
+        )}
+      >
         <Link
           href="/"
           onClick={onNavigate}
-          className="flex items-center gap-2.5 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className={cn("group flex items-center gap-2.5 rounded-lg", focusRing)}
           aria-label="Ethara home"
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-soft">
-            <Armchair className="size-4.5" aria-hidden="true" />
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-soft transition-transform duration-200 group-hover:scale-105">
+            <Armchair className="size-4" aria-hidden="true" />
           </span>
           {!collapsed && (
-            <span className="text-lg font-semibold tracking-tight text-foreground">
+            <span className="font-display text-lg font-semibold tracking-tight text-foreground">
               Ethara
             </span>
           )}
@@ -50,15 +58,28 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
                   aria-current={active ? "page" : undefined}
                   title={collapsed ? item.label : undefined}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                    "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150",
+                    focusRing,
                     collapsed && "justify-center px-2",
                     active
                       ? "bg-accent text-accent-foreground"
-                      : "text-sidebar-foreground hover:bg-muted hover:text-foreground"
+                      : "text-sidebar-foreground hover:bg-muted/60 hover:text-foreground"
                   )}
                 >
-                  <item.icon className="size-4.5 shrink-0" aria-hidden="true" />
-                  {!collapsed && <span className="truncate">{item.label}</span>}
+                  {/* Non-color active cue: 3px accent-solid rail (grows in on
+                      route change). */}
+                  {active && (
+                    <span
+                      aria-hidden="true"
+                      className="absolute inset-y-2 left-0 w-0.75 animate-rail-in rounded-full bg-accent-solid"
+                    />
+                  )}
+                  <item.icon
+                    className="size-4 shrink-0 transition-transform duration-200 group-hover:scale-110"
+                    aria-hidden="true"
+                  />
+                  {/* Label stays in the accessibility tree when collapsed. */}
+                  <span className={collapsed ? "sr-only" : "truncate"}>{item.label}</span>
                 </Link>
               </li>
             );
@@ -67,21 +88,22 @@ export function Sidebar({ collapsed, onToggleCollapsed, onNavigate }: SidebarPro
       </nav>
 
       {/* Collapse toggle (desktop only) */}
-      <div className="hidden border-t border-border p-2 lg:block">
+      <div className="hidden shrink-0 border-t border-border p-2 lg:block">
         <button
           type="button"
           onClick={onToggleCollapsed}
           aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           className={cn(
-            "flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-sidebar-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+            "flex w-full cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-colors duration-150 hover:bg-muted/60 hover:text-foreground",
+            focusRing,
             collapsed && "justify-center px-2"
           )}
         >
           {collapsed ? (
-            <PanelLeftOpen className="size-4.5" aria-hidden="true" />
+            <PanelLeftOpen className="size-4" aria-hidden="true" />
           ) : (
             <>
-              <PanelLeftClose className="size-4.5" aria-hidden="true" />
+              <PanelLeftClose className="size-4" aria-hidden="true" />
               <span>Collapse</span>
             </>
           )}

@@ -20,13 +20,36 @@ import EmployeeDetailLoading from "@/app/(dashboard)/employees/[id]/loading";
 import { ApiError, errorMessage } from "@/lib/api/client";
 import { useEmployee, useProject, useReleaseSeat, useSeatIndex } from "@/lib/api/hooks";
 import { useRole } from "@/lib/demo-role";
-import { formatDate, initials } from "@/lib/utils";
+import { cn, formatDate, initials } from "@/lib/utils";
+import type { ProjectStatus } from "@/types";
 
-function Field({ label, value }: { label: string; value: React.ReactNode }) {
+const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
+  ACTIVE: "Active",
+  ON_HOLD: "On hold",
+  COMPLETED: "Completed",
+};
+
+function Field({
+  label,
+  value,
+  mono = false,
+}: {
+  label: string;
+  value: React.ReactNode;
+  /** IDs, codes and emails render in the mono identifier style. */
+  mono?: boolean;
+}) {
   return (
     <div className="flex items-baseline justify-between gap-4 py-1.5">
       <dt className="shrink-0 text-sm text-muted-foreground">{label}</dt>
-      <dd className="text-right text-sm font-medium">{value}</dd>
+      <dd
+        className={cn(
+          "min-w-0 wrap-break-word text-right text-sm font-medium",
+          mono && "font-mono text-xs"
+        )}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -47,33 +70,46 @@ export function EmployeeDetail({ id }: { id: number }) {
       (employeeQuery.error instanceof ApiError && employeeQuery.error.status === 404)
     ) {
       return (
-        <Card>
-          <CardContent className="p-0">
-            <EmptyState
-              icon={UserX}
-              title="Employee not found"
-              description={`No employee with id ${id} exists in the directory.`}
-              action={
-                <Button asChild variant="outline">
-                  <Link href="/employees">
-                    <ArrowLeft /> Back to employees
-                  </Link>
-                </Button>
-              }
-            />
-          </CardContent>
-        </Card>
+        <>
+          {/* Keep an h1 so the 404 branch's heading outline stays intact. */}
+          <PageHeader
+            title="Employee not found"
+            description="This profile does not exist in the directory."
+          />
+          <Card>
+            <CardContent className="p-0">
+              <EmptyState
+                icon={UserX}
+                title="Employee not found"
+                description={`No employee with id ${id} exists in the directory.`}
+                action={
+                  <Button asChild variant="outline">
+                    <Link href="/employees">
+                      <ArrowLeft /> Back to employees
+                    </Link>
+                  </Button>
+                }
+              />
+            </CardContent>
+          </Card>
+        </>
       );
     }
     return (
-      <ErrorState
-        title="Could not load this employee"
-        description="The Ethara API did not respond. Check that the backend is running, then try again."
-        detail={errorMessage(employeeQuery.error)}
-        onRetry={() => employeeQuery.refetch()}
-        backHref="/employees"
-        backLabel="Back to employees"
-      />
+      <>
+        <PageHeader
+          title="Employee"
+          description="This profile could not be loaded."
+        />
+        <ErrorState
+          title="Could not load this employee"
+          description="The Ethara API did not respond. Check that the backend is running, then try again."
+          detail={errorMessage(employeeQuery.error)}
+          onRetry={() => employeeQuery.refetch()}
+          backHref="/employees"
+          backLabel="Back to employees"
+        />
+      </>
     );
   }
 
@@ -108,11 +144,12 @@ export function EmployeeDetail({ id }: { id: number }) {
   return (
     <>
       <PageHeader
+        eyebrow="Directory"
         title={employee.name}
         description={`${employee.role} · ${employee.department}`}
         actions={
-          <div className="flex items-center gap-2">
-            <Button asChild variant="ghost" size="sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="ghost">
               <Link href="/employees">
                 <ArrowLeft /> All employees
               </Link>
@@ -120,7 +157,6 @@ export function EmployeeDetail({ id }: { id: number }) {
             {canManage && seat && (
               <Button
                 variant="destructive"
-                size="sm"
                 onClick={handleRelease}
                 disabled={releaseSeatMutation.isPending}
               >
@@ -128,7 +164,7 @@ export function EmployeeDetail({ id }: { id: number }) {
               </Button>
             )}
             {canManage && employee.status === "PENDING_ALLOCATION" && (
-              <Button asChild size="sm">
+              <Button asChild>
                 <Link href="/new-joiners">
                   <Armchair /> Allocate seat
                 </Link>
@@ -139,21 +175,26 @@ export function EmployeeDetail({ id }: { id: number }) {
       />
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader className="flex-row items-center gap-4 space-y-0">
-            <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-accent text-sm font-semibold text-accent-foreground">
+            <span
+              className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-accent text-sm font-medium text-accent-foreground"
+              aria-hidden="true"
+            >
               {initials(employee.name)}
             </span>
             <div className="min-w-0 space-y-1">
-              <CardTitle className="truncate">{employee.name}</CardTitle>
-              <CardDescription className="text-metric">
+              <CardTitle as="h2" className="truncate">
+                {employee.name}
+              </CardTitle>
+              <CardDescription className="text-metric font-mono text-xs font-medium">
                 {employee.employee_code}
               </CardDescription>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             <dl className="divide-y divide-border">
-              <Field label="Email" value={employee.email} />
+              <Field label="Email" value={employee.email} mono />
               <Field label="Department" value={employee.department} />
               <Field label="Role" value={employee.role} />
               <Field label="Joined" value={formatDate(employee.joining_date)} />
@@ -162,10 +203,10 @@ export function EmployeeDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Armchair className="size-4 text-primary" /> Seat allocation
+            <CardTitle as="h2" className="flex items-center gap-2">
+              <Armchair className="size-4 text-primary" aria-hidden="true" /> Seat allocation
             </CardTitle>
             <CardDescription>
               {seat
@@ -175,10 +216,12 @@ export function EmployeeDetail({ id }: { id: number }) {
                   : "No active seat allocation"}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {seat ? (
               <>
-                <p className="text-metric text-3xl font-semibold">{seat.seat_code}</p>
+                <p className="text-metric font-mono text-3xl font-semibold tracking-tight">
+                  {seat.seat_code}
+                </p>
                 <dl className="mt-3 divide-y divide-border">
                   <Field label="Floor" value={`Floor ${seat.floor}`} />
                   <Field label="Zone" value={`Zone ${seat.zone}`} />
@@ -189,7 +232,7 @@ export function EmployeeDetail({ id }: { id: number }) {
                 </Button>
               </>
             ) : seatIndexLoading ? (
-              <div className="space-y-3">
+              <div role="status" aria-label="Loading seat allocation" className="space-y-3">
                 <Skeleton className="h-9 w-24" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-2/3" />
@@ -206,31 +249,31 @@ export function EmployeeDetail({ id }: { id: number }) {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="flex flex-col">
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FolderKanban className="size-4 text-primary" /> Project
+            <CardTitle as="h2" className="flex items-center gap-2">
+              <FolderKanban className="size-4 text-primary" aria-hidden="true" /> Project
             </CardTitle>
             <CardDescription>Active project assignment</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1">
             {project ? (
               <>
                 <Link
                   href={`/projects/${project.id}`}
-                  className="text-xl font-semibold hover:underline"
+                  className="inline-block rounded-md font-display text-lg font-semibold tracking-tight text-accent-solid hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                 >
                   {project.name}
                 </Link>
                 <p className="mt-1 text-sm text-muted-foreground">{project.description}</p>
                 <dl className="mt-3 divide-y divide-border">
                   <Field label="Manager" value={project.manager_name} />
-                  <Field label="Status" value={project.status === "ACTIVE" ? "Active" : project.status} />
+                  <Field label="Status" value={PROJECT_STATUS_LABELS[project.status]} />
                 </dl>
               </>
             ) : projectQuery.isPending ? (
-              <div className="space-y-3">
-                <Skeleton className="h-6 w-28" />
+              <div role="status" aria-label="Loading project" className="space-y-3">
+                <Skeleton className="h-7 w-40" />
                 <Skeleton className="h-4 w-full" />
                 <Skeleton className="h-4 w-3/4" />
               </div>

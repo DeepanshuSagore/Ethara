@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, Sparkles } from "lucide-react";
 import {
   MessageBubble,
   TypingIndicator,
@@ -11,7 +11,7 @@ import { SuggestedPrompts } from "@/components/assistant/suggested-prompts";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { errorMessage } from "@/lib/api/client";
 import { useAiQuery } from "@/lib/api/hooks";
@@ -62,6 +62,8 @@ export function ChatPanel() {
             id: nextId.current++,
             role: "assistant",
             content: `I couldn't reach the directory: ${errorMessage(error)}`,
+            error: true,
+            retryPrompt: trimmed,
           },
         ]),
     });
@@ -70,22 +72,34 @@ export function ChatPanel() {
   return (
     <>
       <PageHeader
+        eyebrow="AI Assistant"
         title="Assistant"
         description="Ask natural-language questions about seats, projects and availability."
-        actions={<Badge variant="outline">Groq NL · answers from the live directory</Badge>}
+        actions={
+          <Badge variant="outline" className="whitespace-nowrap">
+            <Sparkles className="size-3 shrink-0" aria-hidden="true" />
+            <span className="hidden sm:inline">Groq NL · answers from the live directory</span>
+            <span className="sm:hidden">Groq NL</span>
+          </Badge>
+        }
       />
 
-      <Card className="flex h-[calc(100dvh-14rem)] min-h-[28rem] flex-col">
-        <CardContent
+      <Card className="flex min-h-96 flex-1 flex-col overflow-hidden">
+        {/* role="log" is an implicitly polite live region with chat semantics;
+            tabIndex lets keyboard users scroll the history (inset ring — the
+            card's overflow-hidden would clip an outset one). */}
+        <div
           ref={scrollRef}
-          className="flex-1 space-y-4 overflow-y-auto p-6"
-          aria-live="polite"
+          role="log"
+          tabIndex={0}
+          aria-label="Conversation"
+          className="flex-1 space-y-4 overflow-y-auto p-5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:ring-inset"
         >
           {messages.map((message) => (
-            <MessageBubble key={message.id} message={message} />
+            <MessageBubble key={message.id} message={message} onRetry={send} />
           ))}
           {thinking && <TypingIndicator />}
-        </CardContent>
+        </div>
 
         <div className="space-y-3 border-t border-border p-4">
           <SuggestedPrompts onPick={send} disabled={thinking} />
@@ -102,9 +116,13 @@ export function ChatPanel() {
               placeholder="Ask about a seat, employee or project…"
               aria-label="Message the assistant"
             />
-            <Button type="submit" size="icon" disabled={!input.trim() || thinking}>
-              <SendHorizontal />
-              <span className="sr-only">Send</span>
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Send message"
+              disabled={!input.trim() || thinking}
+            >
+              <SendHorizontal aria-hidden="true" />
             </Button>
           </form>
         </div>

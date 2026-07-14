@@ -30,14 +30,14 @@ export function EmptyState({
     >
       <span
         className={cn(
-          "flex size-12 items-center justify-center rounded-2xl bg-accent text-accent-foreground",
+          "flex size-12 items-center justify-center rounded-xl bg-accent text-accent-foreground",
           iconWrapClassName
         )}
       >
         <Icon className="size-6" aria-hidden="true" />
       </span>
       <div className="space-y-1">
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h2 className="font-display text-lg font-semibold tracking-tight">{title}</h2>
         {description && (
           <p className="mx-auto max-w-md text-sm text-muted-foreground">{description}</p>
         )}

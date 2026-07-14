@@ -1,9 +1,10 @@
 "use client";
 
-import { FolderKanban } from "lucide-react";
+import { FolderKanban, RefreshCw } from "lucide-react";
 import { ErrorState } from "@/components/layout/error-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { ProjectCard } from "@/components/projects/project-card";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import ProjectsLoading from "@/app/(dashboard)/projects/loading";
@@ -19,6 +20,7 @@ export function ProjectsScreen() {
     return (
       <>
         <PageHeader
+          eyebrow="Portfolio"
           title="Projects"
           description="All active projects with headcount, allocated seats and team location."
         />
@@ -41,6 +43,7 @@ export function ProjectsScreen() {
   return (
     <>
       <PageHeader
+        eyebrow="Portfolio"
         title="Projects"
         description="All active projects with headcount, allocated seats and team location."
       />
@@ -50,12 +53,17 @@ export function ProjectsScreen() {
             <EmptyState
               icon={FolderKanban}
               title="No projects yet"
-              description="Projects appear here with headcount and seat stats once created."
+              description="Projects are created in the Ethara directory, not from this screen. As soon as one exists it appears here with live headcount, allocated seats and team location — refresh to check again."
+              action={
+                <Button onClick={() => utilizationQuery.refetch()}>
+                  <RefreshCw /> Refresh projects
+                </Button>
+              }
             />
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="stagger-children grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {projectStats.map((stats) => (
             <ProjectCard key={stats.project.id} stats={stats} />
           ))}
