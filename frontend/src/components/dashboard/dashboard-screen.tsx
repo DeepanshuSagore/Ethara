@@ -49,6 +49,41 @@ const UTILIZATION_BREAKDOWN = [
   },
 ] as const;
 
+/**
+ * Legend share percentages that sum to exactly 100. Rounding each share
+ * independently drifts (88 + 10 + 2 + 1 = 101 on the seeded data): Occupied
+ * is anchored to the API's utilization_pct so it always matches the donut
+ * center, and the remaining three split the leftover by largest remainder.
+ */
+function breakdownShares(metrics: {
+  total_seats: number;
+  utilization_pct: number;
+  available: number;
+  reserved: number;
+  maintenance: number;
+}): Record<"occupied" | "available" | "reserved" | "maintenance", number> {
+  const total = metrics.total_seats;
+  if (!total) return { occupied: 0, available: 0, reserved: 0, maintenance: 0 };
+  const rest = ["available", "reserved", "maintenance"] as const;
+  const raw = rest.map((key) => (metrics[key] / total) * 100);
+  const shares = raw.map(Math.floor);
+  let leftover = 100 - metrics.utilization_pct - shares.reduce((sum, n) => sum + n, 0);
+  const byFraction = raw
+    .map((value, i) => ({ i, fraction: value - shares[i] }))
+    .sort((a, b) => b.fraction - a.fraction);
+  for (const { i } of byFraction) {
+    if (leftover <= 0) break;
+    shares[i] += 1;
+    leftover -= 1;
+  }
+  return {
+    occupied: metrics.utilization_pct,
+    available: shares[0],
+    reserved: shares[1],
+    maintenance: shares[2],
+  };
+}
+
 export function DashboardScreen() {
   const summary = useDashboardSummary();
   const projectUtilization = useProjectUtilization();
@@ -85,6 +120,7 @@ export function DashboardScreen() {
   }
 
   const metrics = summary.data;
+  const shares = breakdownShares(metrics);
   const projectsById = new Map((projects.data ?? []).map((p) => [p.id, p]));
   const joiners = pendingJoiners.data ?? [];
   const seatsPerFloor = floorUtilization.data[0]?.total ?? 0;
@@ -219,14 +255,7 @@ export function DashboardScreen() {
                     </dt>
                     <dd className="text-metric ml-auto font-mono text-sm font-medium">
                       {formatNumber(metrics[key])}
-                      <span className="text-muted-foreground">
-                        {" "}
-                        ·{" "}
-                        {metrics.total_seats
-                          ? Math.round((metrics[key] / metrics.total_seats) * 100)
-                          : 0}
-                        %
-                      </span>
+                      <span className="text-muted-foreground"> · {shares[key]}%</span>
                     </dd>
                   </div>
                 ))}
