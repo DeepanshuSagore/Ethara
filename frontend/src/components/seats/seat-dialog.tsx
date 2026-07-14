@@ -81,7 +81,7 @@ export function SeatDialog({ seat: seatProp, onOpenChange, onCloseAutoFocus }: S
   if (seatQuery.data) lastSeatRef.current = seatQuery.data;
   const seat = seatQuery.data ?? (seatId === null ? lastSeatRef.current : undefined);
 
-  const { occupantBySeat } = useSeatIndex();
+  const { occupantBySeat, isLoading: registerLoading } = useSeatIndex();
   const occupant = seat ? occupantBySeat.get(seat.id) : undefined;
   const occupantQuery = useEmployee(occupant?.employeeId ?? 0);
 
@@ -293,6 +293,22 @@ export function SeatDialog({ seat: seatProp, onOpenChange, onCloseAutoFocus }: S
                   This seat is free. Switch to the Admin or HR role to allocate it.
                 </p>
               )
+            ) : seat.status === "OCCUPIED" && registerLoading ? (
+              // Register still loading on a cold cache: reserve the occupant
+              // panel's exact footprint, because the centered dialog visibly
+              // re-centers on any height change once the occupant lands.
+              <div
+                role="status"
+                aria-label="Loading occupant"
+                className="space-y-1.5 rounded-lg border border-border bg-muted/60 p-4"
+              >
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                  Allocated to
+                </p>
+                <Skeleton className="h-5 w-40" />
+                <Skeleton className="h-4 w-48" />
+                <Skeleton className="h-3 w-32" />
+              </div>
             ) : (
               <p className="text-sm text-muted-foreground">
                 {seat.status === "RESERVED"

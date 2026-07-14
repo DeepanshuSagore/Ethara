@@ -318,24 +318,29 @@
       opacity: 1;
     }
   }
+  /* Centering lives on the element's `translate` property (Tailwind v4's
+     -translate-x/y-1/2 utilities). The keyframes must NOT translate again:
+     `transform` and `translate` compose, so a translate(-50%,-50%) here
+     double-shifts the panel into the corner for the animation's duration,
+     then snaps to center when the transform drops away. Scale only. */
   @keyframes dialog-in {
     from {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.97);
+      transform: scale(0.97);
     }
     to {
       opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
+      transform: scale(1);
     }
   }
   @keyframes dialog-out {
     from {
       opacity: 1;
-      transform: translate(-50%, -50%) scale(1);
+      transform: scale(1);
     }
     to {
       opacity: 0;
-      transform: translate(-50%, -50%) scale(0.98);
+      transform: scale(0.98);
     }
   }
   @keyframes toast-in {

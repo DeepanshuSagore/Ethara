@@ -226,3 +226,23 @@ curl pass matched expectations. Design notes worth recording:
 - **Lesson:** when a dialog is opened from a list that already holds the row, seed the
   detail query with that row — a centered overlay makes every later height change a visible
   jump, so the first paint must be the final layout.
+
+### Dialog flashed in the corner, then snapped to center — Tailwind v4 translate vs keyframe transform
+- **Symptom:** the seat dialog visibly opened off-center (up-left, one full half-width/half-
+  height away) and snapped to center when the 180ms entrance ended. Frame capture: x≈272 for
+  the animation's duration, then x=496 (viewport 1440, panel 448).
+- **Cause:** Tailwind **v4**'s `-translate-x-1/2 -translate-y-1/2` utilities emit the CSS
+  `translate` property, while the `dialog-in/out` keyframes (written for the v3-era
+  transform-based utilities) animated `transform: translate(-50%,-50%) scale(…)`. The two
+  properties compose, so during the animation the panel was shifted twice (-100%,-100%);
+  when the animation ended the `transform` dropped away and only the correct single shift
+  remained — hence the snap.
+- **Fix:** keyframes animate `scale(…)` + opacity only; centering stays on the element's
+  `translate` property. Also reserved the occupant panel's footprint while the seat index is
+  still warming (cold-cache clicks), so the dialog height is final from the first frame.
+- **Verified:** per-animation-frame rect capture. Warm: x 503→496 (pure scale-in around
+  center). Cold click straight after load: post-entrance drift 0px x / 1px y over 3s.
+- **Lesson:** in Tailwind v4, never re-translate inside keyframes applied to elements that
+  center via translate utilities — `translate` and `transform` are separate, composing
+  properties. Remember the Turbopack gotcha: keyframe edits in globals.css need
+  `rm -rf .next` to show up.
