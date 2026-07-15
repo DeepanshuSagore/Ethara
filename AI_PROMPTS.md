@@ -485,8 +485,66 @@ independently curl-verified against a live server on the full seeded dataset (§
 
 ## 8. Debugging
 
-_Ongoing — significant bugs, their AI-assisted diagnosis, and fixes are logged here and in
-`DEBUGGING_NOTES.md`._
+The debugging loop was the same every time: paste the raw symptom (error text, response headers,
+log lines) into Claude, ask for a diagnosis before any code change, then apply the fix and re-test
+the original failing case. Two representative episodes are written up below; the full bug log,
+phase by phase, lives in [DEBUGGING_NOTES.md](./DEBUGGING_NOTES.md).
+
+### 8a. The Groq fallback drill that was testing nothing
+
+**Prompt:** _(Phase 9)_ "Something is off with the Groq-down drill. I blanked GROQ_API_KEY on
+Render and redeployed, but /ai/query still answers 'Floor 3 has the most available seats right
+now', and that phrasing only exists in the Groq path. Figure out whether the fallback actually
+ran, and redo the drill so it proves what it claims to prove."
+
+**AI output:** It re-ran the env-var update and caught the real problem in the API response:
+Render's `PUT /env-vars/GROQ_API_KEY` with `{"value": ""}` returns a 400 ("must provide a value
+or generateValue must be set to true"). The earlier drill had swallowed that 400 and redeployed
+with the key intact, so the "passing" fallback test had never exercised the fallback at all. The
+proposed redo: DELETE the env var instead (absent means pydantic-settings falls back to its
+default `""`, which is exactly the no-key path the offline tests use), redeploy, probe with a
+question only the NL layer can phrase, then restore the key with a normal PUT.
+
+**Correct:** The diagnosis was right on the first pass, and the DELETE approach worked without
+touching application code. It also suggested the discriminating probe idea: test the drill with a
+query that only the primary path can answer, so "it still answers" can no longer masquerade as
+"the fallback works".
+
+**Incorrect / Manual fixes:** Nothing material. The embarrassing part was human: the first drill
+had been declared a pass without checking the env-var API's status code.
+
+**Verification:** With the key deleted, the NL-only phrasing came back as the deterministic
+guidance message while the brief's amit@ethara.ai email query still answered correctly. After
+restoring the key and redeploying, the same query answered via Groq again. Both states were
+checked with live curl against the Render URL.
+
+### 8b. Seat dialog jitter on the seat map
+
+**Prompt:** _(post-integration polish)_ "Clicking a seat on the seat map opens the dialog with a
+visible jitter: skeleton flash, then the seat header, then the occupant panel replaces a
+'Refreshing the occupant register' line. Three layout jumps before it settles. Find the cause and
+make the first paint the final layout."
+
+**AI output:** The diagnosis had two parts. The dialog was fetching `GET /seats/{id}` from scratch
+even though the map already held that exact Seat object, and `useSeatIndex()` (a different cache
+key than the map's `?floor=` query) only started fetching once the dialog first opened. Each
+resolved fetch changed the content height, and a dialog centered with `translate(-50%, -50%)`
+re-centers on every height change, which reads as jumping. The fix: pass the clicked Seat into the
+dialog as TanStack `placeholderData` so the first paint has real content while the fetch refreshes
+status in the background, warm `useSeatIndex()` on seat-map mount so occupants resolve before any
+click, and keep the last seat rendered through the close animation so the exit can't flash the
+skeleton.
+
+**Correct:** The centering analysis and the `placeholderData` approach were right and are the code
+that shipped.
+
+**Incorrect / Manual fixes:** The first draft passed `placeholderData` as a thunk, which TanStack
+Query v5's types reject for this overload. Changed by hand to the value form,
+`placeholderData: seatProp ?? undefined`.
+
+**Verification:** A headless-Chrome probe clicked a seat and sampled `[role=dialog].offsetHeight`
+every 60ms for 1.4s. Occupied seat held at 298px and available seat at 248px, both with the seat
+code and occupant panel present on the very first sample and zero height drift after it.
 
 ---
 
