@@ -28,5 +28,5 @@ jobs:
             curl -sSf --max-time 90 --retry 3 --retry-delay 10 --retry-all-errors \
               https://ethara-api-edmu.onrender.com/health
             echo " ping $i ok $(date -u +%H:%M:%S)"
-            [ "$i" -lt 6 ] && sleep 540
+            if [ "$i" -lt 6 ]; then sleep 540; fi
           done
