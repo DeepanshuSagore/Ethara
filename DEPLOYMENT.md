@@ -104,10 +104,12 @@ edits via API do not restart the service by themselves** (`POST /v1/services/{sr
 
 ## 5. Free-tier gotchas (by design, documented not fought)
 
-1. **Postgres expires after ~30 days** — `ethara-db` was created 2026-07-13 and Render will
-   suspend it around **2026-08-12** unless upgraded. Re-creating is cheap: new instance →
-   `alembic upgrade head` → `python -m app.seed.run` (deterministic — identical data) →
-   update `DATABASE_URL` on the web service. One free Postgres per workspace.
+1. **Postgres expires after ~30 days — and is deleted, not suspended.** The original
+   `ethara-db` (created 2026-07-13) was gone by 2026-08-31: it no longer appeared under
+   `GET /v1/postgres` for any workspace, while the web service kept its now-dangling
+   `DATABASE_URL`. Symptom: `/health` stays green (no DB touched) but every DB-backed route
+   500s with `failed to resolve host 'dpg-…'`. The replacement was created 2026-08-31 and
+   expires **2026-09-30**. Recovery runbook: §7. One free Postgres per workspace.
 2. **Cold starts** — the free web service spins down after ~15 min idle; the first request
    then takes **~50 s** (the frontend shows its loading skeletons until data lands). Subsequent
    requests are normal.
@@ -139,3 +141,39 @@ edits via API do not restart the service by themselves** (`POST /v1/services/{sr
 - Headless-Chrome pass against https://ethara-snowy.vercel.app: dashboard numbers, employee
   search (amit@ethara.ai → A1-1), seat map grid, new-joiner queue, assistant suggested prompt
   + free-form Groq phrasing. Screenshots in [screenshots/](./screenshots/).
+
+## 7. Recovering from an expired database
+
+Run when §5 gotcha 1 fires (`/health` ok, everything DB-backed 500s). Nothing to delete — the
+expired instance is already gone — so this is create → seed → repoint → redeploy.
+
+1. **Create the replacement** — `POST /v1/postgres` with plan `free`, region `oregon` (must
+   match the web service, or there is no internal network between them), `version: "17"`,
+   `databaseName`/`databaseUser` `ethara`. Poll until `status: available`.
+2. **Repoint the API** — `PUT /v1/services/{srv}/env-vars/DATABASE_URL` to the new
+   **internal** connection string, scheme rewritten to `postgresql+psycopg://` (§5 gotcha 3),
+   then `POST /v1/services/{srv}/deploys` (§4: env edits alone do not restart).
+3. **Migrate + seed in-region.** The database name changes on every new instance
+   (`ethara_pgvm`, …), so the URL cannot be reused from an older note — always read it back
+   from `/connection-info`.
+
+   Two routes that do *not* work on free tier:
+   - one-off jobs — `POST /v1/services/{srv}/jobs` → `400 new paid services not allowed`;
+   - seeding from a dev machine (the original Phase 9 route) — needs a local Python matching
+     the 3.14 pins, plus the IP allowlist and keepalives of §5 gotchas 4-5.
+
+   What works: temporarily prepend the work to the start command, deploy, then **put the
+   start command back and redeploy** — otherwise every free-tier spin-up re-seeds.
+   ```
+   alembic upgrade head && python -m app.seed.run && python -m app.seed.verify && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+   ```
+   In-region over the internal network the whole seed takes ~19 s, and the deploy log carries
+   the `seed.verify` output (23/23 checks). Restore to
+   `uvicorn app.main:app --host 0.0.0.0 --port $PORT` and redeploy.
+4. **Verify** — `GET /dashboard/summary` returns real counts, `POST /ai/query` with the brief's
+   example names a floor/zone/seat, and the Vercel frontend renders live numbers with a clean
+   console. The frontend needs **no** redeploy as long as the API hostname is unchanged
+   (`NEXT_PUBLIC_API_URL` is baked at build time — §3).
+
+Done 2026-08-31: seed restored 11 projects · 5,600 seats · 4,987 employees · 4,907 allocations,
+all 23 checks green.
