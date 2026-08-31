@@ -34,10 +34,10 @@ natural-language AI assistant.
 |-----------|---------------------------------------------------------------|
 | Frontend  | Next.js (App Router) · TypeScript · Tailwind CSS · TanStack Query |
 | Backend   | FastAPI · Pydantic · SQLAlchemy 2.0 · Alembic                 |
-| Database  | PostgreSQL                                                    |
+| Database  | PostgreSQL 17 (Neon)                                          |
 | Auth      | Demo Mode — role switcher (Admin / HR / Project / Employee)  |
 | AI        | Groq API (Llama 3.3) with deterministic fallback             |
-| Deploy    | Vercel (frontend) · Render (backend + managed PostgreSQL 17) |
+| Deploy    | Vercel (frontend) · Render (backend) · Neon (database)       |
 
 ---
 
@@ -94,9 +94,10 @@ through the API (try asking the Assistant: *"Where is my seat? My email is amit@
 | Backend / API   | https://ethara-api-edmu.onrender.com |
 | Swagger docs    | https://ethara-api-edmu.onrender.com/docs |
 
-> Free-tier note: the Render backend cold-starts after ~15 min of inactivity — the **first**
-> request can take ~50 s (the UI shows loading skeletons meanwhile). Everything after that is
-> snappy. Details + deploy steps in [DEPLOYMENT.md](./DEPLOYMENT.md).
+> The backend is kept warm by a 10-minute keep-alive ping, so the usual free-tier ~50 s
+> cold start doesn't apply — a first load lands in well under a second. How that is budgeted
+> against Render's free instance-hours, and why the database lives on Neon rather than Render,
+> is in [DEPLOYMENT.md](./DEPLOYMENT.md) §8 and §5.
 
 ---
 

@@ -9,7 +9,8 @@ Phase 9 deliverable. The whole deployment was driven through the Render and Verc
 | Backend API | Render (free web service, Oregon) | https://ethara-api-edmu.onrender.com |
 | Swagger | — | https://ethara-api-edmu.onrender.com/docs |
 | ReDoc | — | https://ethara-api-edmu.onrender.com/redoc |
-| Database | Render managed PostgreSQL 17 (free) | internal to Render |
+| Database | Neon PostgreSQL 17 (free, AWS `us-west-2`) | `ep-patient-shape-aftiv077.c-2.us-west-2.aws.neon.tech` |
+| Keep-alive | cron-job.org (free) | pings `/health`, job `8360444` |
 
 ---
 
@@ -20,35 +21,42 @@ Browser ──► Vercel (Next.js static + SSR)  ethara-snowy.vercel.app
                 │  fetch (NEXT_PUBLIC_API_URL, inlined at build time)
                 ▼
             Render web service (FastAPI/uvicorn)  ethara-api-edmu.onrender.com
-                │  SQLAlchemy (postgresql+psycopg://, internal network)
-                ▼
-            Render PostgreSQL 17 (ethara-db, same region: Oregon)
-                ▲
-                └── one-time migrate + seed, run from the dev machine over the
-                    external connection string (IP-allowlisted)
+                ▲   │  SQLAlchemy (postgresql+psycopg://, TLS, direct endpoint)
+                │   ▼
+                │  Neon PostgreSQL 17 (free, AWS us-west-2 — same metro as Render)
+                │
+                └── cron-job.org GET /health every 10 min, 23 h/day
+                    (keeps the free web service from idling — §8)
 ```
 
 - Frontend and backend deploy independently; the contract is the REST surface in
   [backend/README.md](./backend/README.md).
-- The backend talks to Postgres over Render's **internal** network (no TLS hop, same region).
+- The database is **Neon**, not Render Postgres: Render's free Postgres is deleted after
+  ~30 days no matter what (§5 gotcha 1), which took the live demo down once. Neon's free
+  tier does not expire. Both sit in Oregon, so the extra TLS hop costs little.
 - Groq is called server-side only; if it is down or the key is absent the deterministic
   engine answers (see [backend/README.md](./backend/README.md) §AI assistant) — the live demo
   never depends on Groq being up.
 
 ## 2. Backend — Render
 
-### PostgreSQL (`ethara-db`)
+### PostgreSQL — Neon (project `ethara`, `empty-truth-17673890`)
 
-Created via `POST https://api.render.com/v1/postgres` — plan `free`, region `oregon`,
-`version: "17"`. Then, **from the dev machine**, against the *external* connection string:
+Originally Render's own managed Postgres; migrated to Neon after that instance expired and
+was deleted (§5 gotcha 1). Created via `POST https://console.neon.tech/api/v2/projects` —
+`region_id: aws-us-west-2`, `pg_version: 17`, free plan.
 
-```bash
-cd backend
-export DATABASE_URL="postgresql+psycopg://…external…?sslmode=require"   # see §5 gotchas
-.venv/bin/alembic upgrade head        # schema (single initial migration)
-.venv/bin/python -m app.seed.run      # deterministic seed: 5,000 employees / 5,600 seats
-.venv/bin/python -m app.seed.verify   # 21 hard checks — all passed against prod
-```
+Two things the connection string must get right:
+
+- **Direct endpoint, not pooled.** `GET /projects/{id}/connection_uri` returns the *pooled*
+  host (`…-pooler.…`) by default; pass `pooled=false`. The pooler is PgBouncer in transaction
+  mode, which breaks psycopg v3's prepared statements under a long-lived SQLAlchemy pool.
+  The pooled host is the right choice for serverless, not for a persistent uvicorn process.
+- **`postgresql+psycopg://` scheme** (same rewrite as Render's, §5 gotcha 3) and Neon's
+  mandatory `sslmode=require`.
+
+Migrate + seed run **on Render**, in-region, via the temporary start command in §7 — no local
+Python or IP allowlist needed. Seed against Neon: 23/23 checks, ~19 s.
 
 ### Web service (`ethara-api`)
 
@@ -104,15 +112,19 @@ edits via API do not restart the service by themselves** (`POST /v1/services/{sr
 
 ## 5. Free-tier gotchas (by design, documented not fought)
 
-1. **Postgres expires after ~30 days — and is deleted, not suspended.** The original
-   `ethara-db` (created 2026-07-13) was gone by 2026-08-31: it no longer appeared under
-   `GET /v1/postgres` for any workspace, while the web service kept its now-dangling
-   `DATABASE_URL`. Symptom: `/health` stays green (no DB touched) but every DB-backed route
-   500s with `failed to resolve host 'dpg-…'`. The replacement was created 2026-08-31 and
-   expires **2026-09-30**. Recovery runbook: §7. One free Postgres per workspace.
-2. **Cold starts** — the free web service spins down after ~15 min idle; the first request
-   then takes **~50 s** (the frontend shows its loading skeletons until data lands). Subsequent
-   requests are normal.
+1. **Render's free Postgres expires after ~30 days — and is deleted, not suspended.**
+   ~~Fought.~~ **Resolved by leaving Render Postgres entirely (§2).** The original `ethara-db`
+   (created 2026-07-13) was gone by 2026-08-31: it no longer appeared under `GET /v1/postgres`
+   for any workspace, while the web service kept its now-dangling `DATABASE_URL`. Symptom:
+   `/health` stays green (no DB touched) but every DB-backed route 500s with
+   `failed to resolve host 'dpg-…'`. No amount of traffic prevents this — the timer is
+   calendar-based, so a keep-alive ping does **not** help. Neon's free tier has no such expiry.
+   §7 keeps the recovery runbook for reference.
+2. **Cold starts** — the free web service spins down after ~15 min idle and the first request
+   then takes **~50 s**. Mitigated by the keep-alive in §8; the cost is ~721 of the 750 free
+   instance-hours/month, which only works because `ethara-api` is the sole free service in its
+   workspace. Neon *also* scales to zero (after 5 min), but wakes in well under a second — a
+   measured first-hit-after-idle was **0.38 s**, so it is not worth burning CU-hours to prevent.
 3. **`postgres://` vs `postgresql+psycopg://`** — Render hands out `postgres://…` connection
    strings; SQLAlchemy + psycopg v3 (the only driver with Python 3.14 wheels, see
    [DEBUGGING_NOTES.md](./DEBUGGING_NOTES.md) Phase 4) needs the scheme rewritten to
@@ -176,4 +188,39 @@ expired instance is already gone — so this is create → seed → repoint → 
    (`NEXT_PUBLIC_API_URL` is baked at build time — §3).
 
 Done 2026-08-31: seed restored 11 projects · 5,600 seats · 4,987 employees · 4,907 allocations,
-all 23 checks green.
+all 23 checks green. The same start-command trick seeded Neon during the migration off Render
+Postgres — it works against any `DATABASE_URL`, not just an internal one.
+
+## 8. Keep-alive (no cold starts)
+
+Render free spins down after 15 min idle, and the next visitor waits ~50 s. For a portfolio
+link that reads as "the site is broken", so the service is pinged instead.
+
+**Primary — cron-job.org** (free, no card, job `8360444`):
+
+| Setting | Value |
+|---|---|
+| URL | `https://ethara-api-edmu.onrender.com/health` |
+| Method / interval | `GET` · every 10 min at `:00 :10 :20 :30 :40 :50` |
+| Hours (UTC) | all except **22** — 138 pings/day, ~23 h/day warm |
+
+Two deliberate choices:
+
+- **`/health`, not a data route.** It touches no database
+  ([main.py](./backend/app/main.py)), so it keeps *Render* warm while letting Neon scale to
+  zero. Pinging a DB-backed route around the clock would need ~186 CU-hours/month against
+  Neon's 100 free — over budget, to save ~0.4 s.
+- **23 h/day, not 24.** Staying warm every hour of a 31-day month costs 744 of Render's 750
+  free instance-hours. Blowing that budget **suspends** the service until the month rolls
+  over, which is far worse than one slow load. Skipping 22:00 UTC (03:30 IST) brings it to
+  ~721 h with real headroom; the exposed window is ~45 min at the least likely visiting hour.
+
+**Backup — [.github/workflows/keep-alive.yml](./.github/workflows/keep-alive.yml).** This was
+the original primary and could not do the job: GitHub throttles shared-runner crons, and on
+this repo a `*/10` schedule actually fired with a **median gap of 136 min and a worst case of
+739 min** against 45 min of coverage per run — hours of daily exposure. GitHub also disables
+scheduled workflows after 60 days of repo inactivity. It is kept only as a one-request safety
+net (the 45-minute sleep loop was removed).
+
+Measured after the switch, Render warm and Neon idle 6 min: first DB-backed request **0.38 s**,
+steady state 0.33-0.80 s.
