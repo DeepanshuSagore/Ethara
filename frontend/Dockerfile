@@ -16,6 +16,13 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
+# NEXT_PUBLIC_* is inlined into the client bundle at BUILD time, not read at
+# run time. It therefore has to arrive as a build argument: passing it as a
+# container env var later would be silently ignored and the image would keep
+# pointing at whatever host built it.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 
