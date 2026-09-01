@@ -3,9 +3,13 @@
 Routers are mounted at ROOT paths per the brief (e.g. /employees,
 /seats/allocate — no version prefix); Swagger at /docs, ReDoc at /redoc.
 """
+import logging
+import time
+import uuid
+from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
-from fastapi import Depends, FastAPI, Response, status
+from fastapi import Depends, FastAPI, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
@@ -15,6 +19,10 @@ from app import models  # noqa: F401 — imported for its side effect: registers
 from app.api import ai, allocations, dashboard, employees, projects, seats
 from app.core.config import settings
 from app.core.database import get_db
+from app.core.logging import configure_logging, request_id_var
+
+configure_logging(settings.log_level)
+logger = logging.getLogger("ethara.request")
 
 app = FastAPI(
     title="Ethara API",
@@ -39,6 +47,50 @@ app.add_middleware(
 )
 
 DbDep = Annotated[Session, Depends(get_db)]
+
+
+@app.middleware("http")
+async def request_context(
+    request: Request, call_next: Callable[[Request], Awaitable[Response]]
+) -> Response:
+    """One structured line per request, and an id to correlate it by.
+
+    An inbound X-Request-ID is honoured so a trace survives the hop from the
+    frontend or a proxy; otherwise one is minted here. It goes back on the
+    response either way, which is what makes a user-reported error findable.
+    """
+    incoming = request.headers.get("X-Request-ID", "")
+    request_id = incoming[:64] if incoming else uuid.uuid4().hex
+    token = request_id_var.set(request_id)
+    started = time.perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        logger.exception(
+            "request failed",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "duration_ms": round((time.perf_counter() - started) * 1000, 2),
+            },
+        )
+        request_id_var.reset(token)
+        raise
+    duration_ms = round((time.perf_counter() - started) * 1000, 2)
+    response.headers["X-Request-ID"] = request_id
+    logger.info(
+        "request",
+        extra={
+            # Path only, never the query string: employee search and the
+            # assistant both put user-typed text there.
+            "method": request.method,
+            "path": request.url.path,
+            "status": response.status_code,
+            "duration_ms": duration_ms,
+        },
+    )
+    request_id_var.reset(token)
+    return response
 
 
 @app.get("/", tags=["meta"])

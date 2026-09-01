@@ -15,6 +15,9 @@ class Settings(BaseSettings):
     groq_api_key: str = ""
     groq_model: str = "openai/gpt-oss-120b"
 
+    # Root log level for the JSON handler in app/core/logging.py.
+    log_level: str = "INFO"
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_origins_raw.split(",") if o.strip()]
