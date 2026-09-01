@@ -59,6 +59,7 @@ htmlcov/
 .omo/
 .claude/
 .agents/
+.playwright-mcp/
 improvement.md
 
 # Misc
