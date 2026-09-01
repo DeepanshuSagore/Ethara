@@ -1,0 +1,86 @@
+name: ethara
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ethara}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ethara}
+      POSTGRES_DB: ${POSTGRES_DB:-ethara}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      # 5433 on the host so this never fights a Postgres already on 5432.
+      - "${POSTGRES_HOST_PORT:-5433}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ethara} -d ${POSTGRES_DB:-ethara}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      # psycopg v3 needs the +psycopg scheme; plain postgresql:// asks for
+      # psycopg2, which this project deliberately does not install.
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ethara}:${POSTGRES_PASSWORD:-ethara}@db:5432/${POSTGRES_DB:-ethara}
+      CORS_ORIGINS_RAW: ${CORS_ORIGINS_RAW:-http://localhost:3000}
+      GROQ_API_KEY: ${GROQ_API_KEY:-}
+      GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+    ports:
+      - "${API_HOST_PORT:-8000}:8000"
+    depends_on:
+      db:
+        # Not service_started: Postgres accepts connections well after the
+        # container exists, and the first run on a clean machine is exactly
+        # when that gap bites.
+        condition: service_healthy
+    healthcheck:
+      # stdlib urllib rather than the httpx already installed: importing httpx
+      # costs ~10s here and overran the timeout, reporting an unhealthy API
+      # while uvicorn served fine. 127.0.0.1 so the check cannot pick ::1.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import sys, urllib.request
+          sys.exit(0 if urllib.request.urlopen("http://127.0.0.1:8000/health", timeout=3).status == 200 else 1)
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      # Generous: the first boot migrates and seeds ~4,987 employees and
+      # 5,600 seats before uvicorn binds.
+      start_period: 120s
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Read by the browser, not by this container, so it must be an address
+        # the host can reach. http://api:8000 would only resolve inside the
+        # compose network and every request from the page would fail.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+    ports:
+      - "${WEB_HOST_PORT:-3000}:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # Not started by `docker compose up` (it is behind a profile). Forces a
+  # rebuild of the dataset: docker compose run --rm seed
+  seed:
+    build:
+      context: ./backend
+    profiles: ["tools"]
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ethara}:${POSTGRES_PASSWORD:-ethara}@db:5432/${POSTGRES_DB:-ethara}
+    depends_on:
+      db:
+        condition: service_healthy
+    command: ["python", "-m", "app.seed.run"]
+
+volumes:
+  pgdata:
