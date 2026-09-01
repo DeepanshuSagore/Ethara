@@ -34,8 +34,10 @@ WORKDIR /app
 COPY --chown=ethara:ethara alembic.ini ./
 COPY --chown=ethara:ethara alembic ./alembic
 COPY --chown=ethara:ethara app ./app
+COPY --chown=ethara:ethara docker-entrypoint.sh ./
+RUN chmod +x docker-entrypoint.sh
 
 USER ethara
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./docker-entrypoint.sh"]
