@@ -74,11 +74,15 @@ Environment variables:
 
 | Key | Value / note |
 |---|---|
-| `DATABASE_URL` | **internal** connection string, scheme rewritten to `postgresql+psycopg://` |
+| `DATABASE_URL` | Neon **direct** (non-pooled) URI, scheme `postgresql+psycopg://`, `sslmode=require` — §2 |
 | `GROQ_API_KEY` | Groq key (set via API, never committed) |
-| `GROQ_MODEL` | `openai/gpt-oss-120b` |
 | `CORS_ORIGINS_RAW` | `https://ethara-snowy.vercel.app,https://ethara-deepanshus-projects-129a43e3.vercel.app,https://ethara-git-main-deepanshus-projects-129a43e3.vercel.app,http://localhost:3000` |
 | `PYTHON_VERSION` | `3.14.3` — matches the local venv and the requirements pins exactly |
+
+`GROQ_MODEL` is deliberately **not** set here. It was, and that copy silently outlived the model
+it named (§5 gotcha 6). The only value now lives in
+[backend/app/core/config.py](./backend/app/core/config.py), so the next deprecation is a one-line
+code change that auto-deploys on push, reviewable in git — not an invisible dashboard edit.
 
 Render's default Python for new services is already 3.14.3, so the Phase 4 pins
 (psycopg v3, SQLAlchemy 2.0.44, pydantic 2.12) run unchanged — pinned anyway so a future
@@ -144,7 +148,8 @@ edits via API do not restart the service by themselves** (`POST /v1/services/{sr
    error and falls back to the deterministic engine, nothing 500s and nothing looks broken: the
    assistant just quietly stops answering anything past the keyword intents. Probe for it with a
    question only the NL layer can parse ("which floor has the most free seats?") - if that misses,
-   `GROQ_MODEL` is dead. Now `openai/gpt-oss-120b`.
+   `GROQ_MODEL` is dead. Now `openai/gpt-oss-120b`, pinned in code rather than as a Render
+   env var (§2) so the fix is a commit, not a dashboard edit.
 
 ## 6. Post-deploy verification (all against production)
 
