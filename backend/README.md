@@ -11,13 +11,51 @@ alembic upgrade head          # create the schema (SQLite by default)
 python -m app.seed.run        # seed data (see below)
 uvicorn app.main:app --reload
 ```
-Run the tests with `pytest` (74: schema smoke + endpoint contracts + every allocation rule +
-the mocked Groq NL layer — the suite is fully offline and never calls Groq).
 The DB is `DATABASE_URL`-driven: SQLite locally, PostgreSQL (`postgresql+psycopg://…`,
-psycopg v3) on Render — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md).
+psycopg v3) in production — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md).
 - API: http://localhost:8000
 - Swagger: http://localhost:8000/docs
 - ReDoc: http://localhost:8000/redoc
+
+## Testing
+
+74 tests: schema smoke + endpoint contracts + every allocation rule + the mocked Groq NL
+layer. The suite is fully offline — an autouse fixture blanks `GROQ_API_KEY`, so it never
+calls Groq even when `.env` holds a real key.
+
+**Two engine tiers, and the second one is the point.**
+
+```bash
+pytest                                  # SQLite only: 74 passed, 74 skipped, ~1s
+pytest --cov=app --cov-report=term-missing
+
+# Both engines. Needs a Postgres; compose already provides one on 5433.
+docker compose up -d db
+docker compose exec db psql -U ethara -d postgres -c "CREATE DATABASE ethara_test OWNER ethara;"
+TEST_DATABASE_URL=postgresql+psycopg://ethara:ethara@localhost:5433/ethara_test pytest
+# → 148 passed in 68s
+```
+
+| Tier | Engine | Runs | Why |
+|---|---|---|---|
+| `[sqlite]` | in-memory SQLite, `StaticPool` | always | Fast enough to run on every save |
+| `[postgres]` | PostgreSQL 17, psycopg v3 | when `TEST_DATABASE_URL` is set; always in CI | Production is Postgres |
+
+Every test runs on both tiers — nothing is marked SQLite-only. The `engine` fixture drops
+and recreates the schema per test, so the tiers cannot leak into each other.
+
+**What the second tier is for.** SQLite and Postgres disagree about `LIKE` case
+sensitivity, `VARCHAR(n)` length enforcement, type affinity, and the order rows come back
+in without an `ORDER BY`. A green SQLite-only suite proves the SQLite schema is correct
+and says nothing about the one actually deployed.
+
+Running it found **no divergences** — the app was already portable: `.ilike()` and
+`func.lower()` rather than relying on either engine's collation defaults, and the
+one-active-allocation partial unique indexes declared with both `sqlite_where` and
+`postgresql_where`. The seeder's `setval()` on the identity sequences is the one place
+that is explicitly Postgres-only, and it is exercised by `docker compose up` rather than
+by pytest: seeding writes explicit ids, so without it the next API insert would collide
+on the primary key.
 
 ## Endpoints (Phase 6 — exact paths from the brief, no version prefix)
 
