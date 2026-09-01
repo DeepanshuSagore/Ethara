@@ -19,6 +19,7 @@ already pinned) — the groq SDK trips a pydantic.v1 UserWarning on Python 3.14
 """
 import json
 import logging
+import time
 from typing import Any
 
 import httpx
@@ -42,6 +43,10 @@ MAX_ANSWER_CHARS = 1500
 MIN_CONFIDENCE = 0.5
 
 REFUSAL = ai_query.REFUSAL
+
+# Reasons the provider was never called. Configuration, not degradation, so
+# these log at INFO while a failed call logs at WARNING.
+_SKIPPED_REASONS = {"no_api_key", "query_too_long"}
 
 _INTENTS = {
     "employee_seat",
@@ -90,17 +95,49 @@ def answer_query(db: Session, query: str, history: list[dict[str, Any]] | None =
     works offline.
     """
     turns = _sanitize_history(history)
-    if not settings.groq_api_key or len(query) > MAX_QUERY_CHARS:
-        return ai_query.answer_query(db, query)
+    if not settings.groq_api_key:
+        return _fallback(db, query, "no_api_key")
+    if len(query) > MAX_QUERY_CHARS:
+        return _fallback(db, query, "query_too_long")
     parsed = _parse_intent(query, turns)
     if parsed is None:
-        return ai_query.answer_query(db, query)
+        return _fallback(db, query, "parse_unusable")
     answer = _execute(db, parsed)
     if answer is None:
         answer = _grounded_chat(db, query, turns)
     if answer is None:
-        return ai_query.answer_query(db, query)
+        return _fallback(db, query, "chat_unusable")
     return answer
+
+
+def _fallback(db: Session, query: str, reason: str) -> str:
+    """Hand off to the deterministic engine, recording why.
+
+    This is the line an incident is diagnosed from: a burst of
+    reason=call_failed means the provider is degraded, while
+    reason=parse_unusable means it answered but unhelpfully.
+    """
+    skipped = reason in _SKIPPED_REASONS
+    logger.log(
+        logging.INFO if skipped else logging.WARNING,
+        "deterministic fallback engaged",
+        extra={"event": "ai_fallback", "reason": reason, "provider_called": not skipped},
+    )
+    return ai_query.answer_query(db, query)
+
+
+def _log_groq_call(stage: str, started: float, outcome: str, **fields: Any) -> None:
+    logger.info(
+        "groq call",
+        extra={
+            "event": "groq_call",
+            "stage": stage,
+            "outcome": outcome,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 2),
+            "model": settings.groq_model,
+            **fields,
+        },
+    )
 
 
 def _sanitize_history(history: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
@@ -118,6 +155,7 @@ def _sanitize_history(history: list[dict[str, Any]] | None) -> list[dict[str, An
 
 def _parse_intent(query: str, history: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Ask Groq to classify the query; None on any failure → caller falls back."""
+    started = time.perf_counter()
     try:
         response = httpx.post(
             GROQ_CHAT_URL,
@@ -139,16 +177,19 @@ def _parse_intent(query: str, history: list[dict[str, Any]]) -> dict[str, Any] |
         response.raise_for_status()
         parsed = json.loads(response.json()["choices"][0]["message"]["content"])
     except Exception as exc:  # timeout, HTTP/rate-limit error, bad JSON — never bubble
-        logger.warning("Groq parse failed (%s) — using deterministic fallback", type(exc).__name__)
+        _log_groq_call("parse", started, "error", error=type(exc).__name__)
         return None
     if not isinstance(parsed, dict) or parsed.get("intent") not in _INTENTS:
+        _log_groq_call("parse", started, "unusable")
         return None
     try:
         confidence = float(parsed.get("confidence") or 0)
     except (TypeError, ValueError):
         confidence = 0.0
     if confidence < MIN_CONFIDENCE:
+        _log_groq_call("parse", started, "low_confidence", confidence=confidence)
         return None
+    _log_groq_call("parse", started, "ok", intent=parsed["intent"], confidence=confidence)
     return parsed
 
 
@@ -235,6 +276,7 @@ def _fact_pack(db: Session) -> str:
 
 def _grounded_chat(db: Session, query: str, history: list[dict[str, Any]]) -> str | None:
     """Free-form but fact-grounded answer; None on any failure → fallback."""
+    started = time.perf_counter()
     try:
         response = httpx.post(
             GROQ_CHAT_URL,
@@ -257,11 +299,13 @@ def _grounded_chat(db: Session, query: str, history: list[dict[str, Any]]) -> st
         response.raise_for_status()
         content = (response.json()["choices"][0]["message"]["content"] or "").strip()
     except Exception as exc:  # same never-bubble contract as the parse stage
-        logger.warning("Groq chat failed (%s) — using deterministic fallback", type(exc).__name__)
+        _log_groq_call("chat", started, "error", error=type(exc).__name__)
         return None
     # A JSON-shaped reply means the model echoed the parser format, not prose.
     if not content or content.startswith("{"):
+        _log_groq_call("chat", started, "unusable")
         return None
+    _log_groq_call("chat", started, "ok", answer_chars=len(content))
     # House copy rule: no long dashes anywhere in the product, AI answers included.
     content = content.replace("—", "-").replace("–", "-")
     return content[:MAX_ANSWER_CHARS]
