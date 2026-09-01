@@ -52,7 +52,14 @@ Thumbs.db
 # Testing / coverage
 coverage/
 .coverage
+coverage.xml
 htmlcov/
+
+# Agent scratch / local planning notes — not part of the project
+.omo/
+.claude/
+.agents/
+improvement.md
 
 # Misc
 *.pem
