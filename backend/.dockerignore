@@ -1,0 +1,36 @@
+# Keep the build context to what the image actually runs. Anything listed here
+# is never sent to the daemon, so it cannot end up in a layer by accident.
+
+# Local virtualenv — platform-specific, and rebuilt inside the builder stage.
+.venv/
+venv/
+
+# Python build artefacts
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Tool caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Secrets and local state. .env holds a real Groq key and the Neon URL; the
+# image takes its environment from Compose instead.
+.env
+.env.*
+!.env.example
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Dev-only: the runtime image installs requirements.txt and nothing else.
+tests/
+requirements-dev.txt
+pyproject.toml
+README.md
