@@ -1,8 +1,13 @@
 # Ethara — Seat Allocation & Project Mapping System
 
+[![CI](https://github.com/DeepanshuSagore/Ethara/actions/workflows/ci.yml/badge.svg)](https://github.com/DeepanshuSagore/Ethara/actions/workflows/ci.yml)
+
 A full-stack platform to manage **seat allocation** and **project mapping** for ~5,000 employees,
 serving Employee, HR, Admin, and Project-team workflows — with search, analytics dashboards, and a
 natural-language AI assistant.
+
+Every push runs `ruff` → `mypy` → **148 tests across SQLite and PostgreSQL 17** → both Docker
+images. Coverage is **75%** on branch coverage (91% excluding the one-off seed CLI).
 
 > Built as a technical assessment. See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phased plan
 > and [AI_PROMPTS.md](./AI_PROMPTS.md) for AI-tool usage documentation.
