@@ -1,0 +1,23 @@
+# Tool configuration for the Ethara backend.
+#
+# There is no [build-system] here on purpose: this is a deployed application,
+# not a published package. Runtime dependencies live in requirements.txt and
+# dev/CI tooling in requirements-dev.txt; this file only configures the tools.
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.coverage.run]
+source = ["app"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# Ratchet, not a target. Raise it when coverage genuinely improves; never lower
+# it to make a run pass. The headline number is held down by app/seed/, which is
+# one-off CLI tooling verified by `python -m app.seed.verify` rather than pytest.
+fail_under = 70
+exclude_also = [
+    "if __name__ == .__main__.:",
+]

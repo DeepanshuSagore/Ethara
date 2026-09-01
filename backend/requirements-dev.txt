@@ -1,0 +1,9 @@
+# Dev + CI tooling. Deliberately separate from requirements.txt so the runtime
+# image (backend/Dockerfile) never ships pytest or the linters.
+#
+#   pip install -r requirements-dev.txt
+#
+-r requirements.txt
+
+pytest==8.4.2
+pytest-cov==7.1.0
