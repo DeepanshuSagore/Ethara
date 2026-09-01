@@ -6,6 +6,8 @@ friendly 409s, with IntegrityError → 409 as the last line of defense against
 races. Rules 3 (release → AVAILABLE), 4 (only AVAILABLE seats allocatable) and
 5 (new-joiner proximity ranking) are enforced entirely here.
 """
+from typing import Any, NoReturn
+
 from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -19,14 +21,14 @@ from app.seed.data import project_home_zone_key, zone_key
 _REASON_RANK = {"team-zone": 0, "same-floor": 1, "alternate-zone": 2}
 
 
-def get_or_404(db: Session, model: type, obj_id: int, label: str):
+def get_or_404[M](db: Session, model: type[M], obj_id: int, label: str) -> M:
     obj = db.get(model, obj_id)
     if obj is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, f"{label} {obj_id} not found.")
     return obj
 
 
-def _conflict(detail: str) -> None:
+def _conflict(detail: str) -> NoReturn:
     raise HTTPException(status.HTTP_409_CONFLICT, detail)
 
 
@@ -107,7 +109,7 @@ def release_employee_seat(db: Session, employee: Employee) -> None:
     """Release the employee's ACTIVE allocation if any — no commit (caller's)."""
     allocation = active_allocation_for_employee(db, employee.id)
     if allocation is not None:
-        _release(allocation, db.get(Seat, allocation.seat_id))
+        _release(allocation, get_or_404(db, Seat, allocation.seat_id, "Seat"))
 
 
 def deactivate_employee(db: Session, employee_id: int) -> Employee:
@@ -120,7 +122,7 @@ def deactivate_employee(db: Session, employee_id: int) -> Employee:
     return employee
 
 
-def suggest_seats(db: Session, employee_id: int, limit: int = 3) -> list[dict]:
+def suggest_seats(db: Session, employee_id: int, limit: int = 3) -> list[dict[str, Any]]:
     """Rule 5 — rank AVAILABLE seats: team zone → same floor → alternate zones.
 
     Team zone = the (floor, zone) where most of the employee's project-mates
@@ -151,7 +153,7 @@ def suggest_seats(db: Session, employee_id: int, limit: int = 3) -> list[dict]:
     available = db.scalars(
         select(Seat).where(Seat.status == "AVAILABLE").order_by(Seat.id)
     ).all()
-    suggestions = []
+    suggestions: list[dict[str, Any]] = []
     for seat in available:
         if zone_key(seat.floor, seat.zone) == team_zone:
             reason = "team-zone"

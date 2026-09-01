@@ -169,14 +169,14 @@ def build_rows() -> dict[str, list[dict]]:
             if e["project_id"] == project["id"] and e["status"] in ("ACTIVE", "ON_LEAVE")
         ]
         for member in members:
-            seat = take_seat_near(project["id"])
-            if seat is None:  # cannot happen: OCCUPIED_COUNT == SEATED_COUNT
+            chosen = take_seat_near(project["id"])
+            if chosen is None:  # cannot happen: OCCUPIED_COUNT == SEATED_COUNT
                 raise RuntimeError("ran out of occupiable seats")
             allocations.append(
                 {
                     "id": len(allocations) + 1,
                     "employee_id": member["id"],
-                    "seat_id": seat["id"],
+                    "seat_id": chosen["id"],
                     "project_id": project["id"],
                     "allocation_status": "ACTIVE",
                     "allocation_date": member["joining_date"],

@@ -19,6 +19,7 @@ already pinned) — the groq SDK trips a pydantic.v1 UserWarning on Python 3.14
 """
 import json
 import logging
+from typing import Any
 
 import httpx
 from sqlalchemy import case, func, select
@@ -79,7 +80,7 @@ Rules:
 """
 
 
-def answer_query(db: Session, query: str, history: list[dict] | None = None) -> str:
+def answer_query(db: Session, query: str, history: list[dict[str, Any]] | None = None) -> str:
     """Entry point behind POST /ai/query.
 
     Groq parse → DB execute; questions the fixed intents can't serve
@@ -102,9 +103,9 @@ def answer_query(db: Session, query: str, history: list[dict] | None = None) -> 
     return answer
 
 
-def _sanitize_history(history: list[dict] | None) -> list[dict]:
+def _sanitize_history(history: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """Client-supplied turns become plain {role, content} pairs, capped hard."""
-    turns = []
+    turns: list[dict[str, Any]] = []
     for turn in history or []:
         role = turn.get("role")
         content = str(turn.get("content") or "").strip()
@@ -115,7 +116,7 @@ def _sanitize_history(history: list[dict] | None) -> list[dict]:
 
 # --- NL → structured query -----------------------------------------------------
 
-def _parse_intent(query: str, history: list[dict]) -> dict | None:
+def _parse_intent(query: str, history: list[dict[str, Any]]) -> dict[str, Any] | None:
     """Ask Groq to classify the query; None on any failure → caller falls back."""
     try:
         response = httpx.post(
@@ -232,7 +233,7 @@ def _fact_pack(db: Session) -> str:
     return "\n".join(lines)
 
 
-def _grounded_chat(db: Session, query: str, history: list[dict]) -> str | None:
+def _grounded_chat(db: Session, query: str, history: list[dict[str, Any]]) -> str | None:
     """Free-form but fact-grounded answer; None on any failure → fallback."""
     try:
         response = httpx.post(
@@ -268,7 +269,7 @@ def _grounded_chat(db: Session, query: str, history: list[dict]) -> str | None:
 
 # --- structured query → answer from real DB rows ------------------------------
 
-def _execute(db: Session, parsed: dict) -> str | None:
+def _execute(db: Session, parsed: dict[str, Any]) -> str | None:
     """Run the parsed intent against the DB; None means 'let the fallback try'."""
     intent = parsed["intent"]
     if intent == "off_topic":
@@ -296,7 +297,7 @@ def _execute(db: Session, parsed: dict) -> str | None:
     return None
 
 
-def _employee_seat_answer(db: Session, parsed: dict) -> str | None:
+def _employee_seat_answer(db: Session, parsed: dict[str, Any]) -> str | None:
     email = (parsed.get("email") or "").strip().lower()
     name = (parsed.get("name") or "").strip()
     employee = None
@@ -384,7 +385,7 @@ def _find_project(db: Session, raw: str | None) -> Project | None:
     )
 
 
-def _as_int(value) -> int | None:
+def _as_int(value: Any) -> int | None:
     try:
         return int(value)
     except (TypeError, ValueError):

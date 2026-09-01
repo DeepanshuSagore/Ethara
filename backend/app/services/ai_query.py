@@ -104,7 +104,7 @@ def _find_employee(db: Session, q: str) -> Employee | None:
 
 
 def employee_answer(db: Session, employee: Employee) -> str:
-    project = db.get(Project, employee.project_id)
+    project = db.get_one(Project, employee.project_id)
     seat = db.scalar(
         select(Seat)
         .join(SeatAllocation, SeatAllocation.seat_id == Seat.id)

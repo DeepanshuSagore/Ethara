@@ -3,9 +3,10 @@
 Models are defined in app/models (Phase 4). Use `get_db` as a FastAPI dependency.
 """
 from collections.abc import Generator
+from typing import Any
 
 from sqlalchemy import MetaData, create_engine, event
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.core.config import settings
 
@@ -20,7 +21,7 @@ if engine.dialect.name == "sqlite":
     # SQLite ships with foreign-key enforcement OFF per connection; turn it on
     # so local dev matches PostgreSQL's referential integrity.
     @event.listens_for(engine, "connect")
-    def _sqlite_fk_pragma(dbapi_connection, _record) -> None:
+    def _sqlite_fk_pragma(dbapi_connection: Any, _record: Any) -> None:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
@@ -45,7 +46,7 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=NAMING_CONVENTION)
 
 
-def get_db() -> Generator:
+def get_db() -> Generator[Session]:
     db = SessionLocal()
     try:
         yield db

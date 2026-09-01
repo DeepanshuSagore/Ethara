@@ -24,17 +24,17 @@ def _check(label: str, ok: bool) -> None:
 
 
 def _status_counts(session: Session, model, column) -> dict[str, int]:
-    rows = session.execute(select(column, func.count()).group_by(column)).all()
+    rows = session.execute(select(column, func.count()).group_by(column)).tuples().all()
     return dict(rows)
 
 
 def verify() -> int:
     _CHECKS.clear()
     with SessionLocal() as session:
-        n_projects = session.scalar(select(func.count()).select_from(Project))
-        n_seats = session.scalar(select(func.count()).select_from(Seat))
-        n_employees = session.scalar(select(func.count()).select_from(Employee))
-        n_allocations = session.scalar(select(func.count()).select_from(SeatAllocation))
+        n_projects = session.scalar(select(func.count()).select_from(Project)) or 0
+        n_seats = session.scalar(select(func.count()).select_from(Seat)) or 0
+        n_employees = session.scalar(select(func.count()).select_from(Employee)) or 0
+        n_allocations = session.scalar(select(func.count()).select_from(SeatAllocation)) or 0
 
         seat_status = _status_counts(session, Seat, Seat.status)
         emp_status = _status_counts(session, Employee, Employee.status)
@@ -102,7 +102,7 @@ def verify() -> int:
         )
         _check(
             f"team sizes organic (min {project_sizes[0]}, max {project_sizes[-1]}, ratio >= 2x)",
-            project_sizes and project_sizes[-1] >= 2 * project_sizes[0],
+            bool(project_sizes) and project_sizes[-1] >= 2 * project_sizes[0],
         )
         floor_occupied = sorted(
             count
@@ -115,7 +115,7 @@ def verify() -> int:
         _check(
             f"floor occupancy uneven (spread "
             f"{floor_occupied[-1] - floor_occupied[0]} seats >= 100)",
-            floor_occupied and floor_occupied[-1] - floor_occupied[0] >= 100,
+            bool(floor_occupied) and floor_occupied[-1] - floor_occupied[0] >= 100,
         )
 
         amit = session.scalar(select(Employee).where(Employee.email == "amit@ethara.ai"))

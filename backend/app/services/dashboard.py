@@ -4,6 +4,8 @@ No cache to invalidate: every allocation/release is reflected immediately.
 Shapes mirror the mock store's derived DashboardMetrics/ProjectStats/FloorStats
 (frontend/src/lib/mock/store.tsx) so the Phase 7 swap is mechanical.
 """
+from typing import Any
+
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -15,9 +17,9 @@ def _pct(part: int, total: int) -> int:
     return round(part * 100 / total) if total else 0
 
 
-def summary(db: Session) -> dict:
+def summary(db: Session) -> dict[str, Any]:
     seat_counts: dict[str, int] = dict(
-        db.execute(select(Seat.status, func.count()).group_by(Seat.status)).all()
+        db.execute(select(Seat.status, func.count()).group_by(Seat.status)).tuples().all()
     )
     total_seats = sum(seat_counts.values())
     occupied = seat_counts.get("OCCUPIED", 0)
@@ -41,13 +43,13 @@ def summary(db: Session) -> dict:
     }
 
 
-def project_utilization(db: Session) -> list[dict]:
+def project_utilization(db: Session) -> list[dict[str, Any]]:
     headcount: dict[int, int] = dict(
         db.execute(
             select(Employee.project_id, func.count())
             .where(Employee.status != "EXITED")
             .group_by(Employee.project_id)
-        ).all()
+        ).tuples().all()
     )
     seated: dict[int, int] = dict(
         db.execute(
@@ -59,7 +61,7 @@ def project_utilization(db: Session) -> list[dict]:
                 Employee.status != "EXITED",
             )
             .group_by(Employee.project_id)
-        ).all()
+        ).tuples().all()
     )
     projects = db.scalars(select(Project).order_by(Project.id)).all()
     return [
@@ -73,14 +75,14 @@ def project_utilization(db: Session) -> list[dict]:
     ]
 
 
-def floor_utilization(db: Session) -> list[dict]:
+def floor_utilization(db: Session) -> list[dict[str, Any]]:
     by_floor: dict[int, dict[str, int]] = {}
     for floor, seat_status, count in db.execute(
         select(Seat.floor, Seat.status, func.count()).group_by(Seat.floor, Seat.status)
     ):
         by_floor.setdefault(floor, {})[seat_status] = count
 
-    result = []
+    result: list[dict[str, Any]] = []
     for floor in sorted(by_floor):
         counts = by_floor[floor]
         total = sum(counts.values())
