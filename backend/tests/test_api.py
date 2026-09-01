@@ -6,6 +6,7 @@ rule 3 (release → AVAILABLE, also on deactivate), rule 4 (RESERVED/MAINTENANCE
 not allocatable), rule 5 (proximity suggestions), rule 6 (duplicate email),
 rule 7 (duplicate seat position), rule 8 (dashboard recomputes live).
 """
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -148,6 +149,37 @@ def test_health_returns_503_when_the_database_is_unreachable(client):
     body = response.json()
     assert body["status"] == "degraded"
     assert body["database"] == "down"
+
+
+# --- Request logging -----------------------------------------------------------
+
+def test_response_carries_a_request_id_header(client):
+    response = client.get("/health")
+    assert response.headers["X-Request-ID"]
+
+
+def test_an_inbound_request_id_is_honoured(client):
+    response = client.get("/health", headers={"X-Request-ID": "trace-from-the-frontend"})
+    assert response.headers["X-Request-ID"] == "trace-from-the-frontend"
+
+
+def test_each_request_logs_one_structured_line(client, log_lines):
+    client.get("/health")
+    lines = [line for line in log_lines if line["logger"] == "ethara.request"]
+    assert len(lines) == 1
+    line = lines[0]
+    assert line["method"] == "GET"
+    assert line["path"] == "/health"
+    assert line["status"] == 200
+    assert isinstance(line["duration_ms"], float)
+    assert line["request_id"]
+
+
+def test_query_strings_never_reach_the_logs(client, dataset, log_lines):
+    """Employee search puts user-typed text in the query string; it stays out."""
+    client.get("/employees", params={"search": "amit@ethara.ai"})
+    lines = [line for line in log_lines if line["logger"] == "ethara.request"]
+    assert lines and all("amit@ethara.ai" not in json.dumps(line) for line in lines)
 
 
 # --- Employees ---------------------------------------------------------------

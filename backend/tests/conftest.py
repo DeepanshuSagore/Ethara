@@ -11,6 +11,8 @@ it about type affinity, VARCHAR length enforcement, LIKE case sensitivity and
 the order rows come back in without an ORDER BY. A green SQLite-only suite
 proves the SQLite schema is correct and says nothing about the deployed one.
 """
+import json
+import logging
 import os
 from collections.abc import Generator
 
@@ -23,6 +25,7 @@ from sqlalchemy.pool import NullPool, StaticPool
 import app.models  # noqa: F401 — register all tables on Base
 from app.core.config import settings
 from app.core.database import Base, get_db
+from app.core.logging import JsonFormatter
 from app.main import app as fastapi_app
 
 POSTGRES_TEST_URL = os.getenv("TEST_DATABASE_URL", "")
@@ -105,3 +108,29 @@ def client(db) -> Generator[TestClient]:
             yield test_client
     finally:
         fastapi_app.dependency_overrides.clear()
+
+
+class _CapturingHandler(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__()
+        self.setFormatter(JsonFormatter())
+        self.records: list[dict] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(json.loads(self.format(record)))
+
+
+@pytest.fixture()
+def log_lines() -> Generator[list[dict]]:
+    """The parsed JSON a production log would actually contain.
+
+    Formats through JsonFormatter rather than reading record attributes, so a
+    field that fails to serialise fails the test instead of passing silently.
+    """
+    handler = _CapturingHandler()
+    root = logging.getLogger()
+    root.addHandler(handler)
+    try:
+        yield handler.records
+    finally:
+        root.removeHandler(handler)
