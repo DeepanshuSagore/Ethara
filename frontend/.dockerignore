@@ -1,0 +1,23 @@
+# node_modules is reinstalled from the lockfile in the deps stage; copying the
+# host's would drag in platform-specific binaries built for macOS.
+node_modules/
+.next/
+out/
+build/
+
+# Secrets and local state. NEXT_PUBLIC_API_URL reaches the build as a build
+# argument, never as a copied .env file.
+.env
+.env.*
+
+.git/
+.vercel/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+npm-debug.log*
+.DS_Store
+README.md
+AGENTS.md
+CLAUDE.md
+DESIGN_SYSTEM.md
