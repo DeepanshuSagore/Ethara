@@ -18,9 +18,46 @@ from app.services import dashboard as dashboard_service
 _EMAIL_RE = re.compile(r"[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}")
 _FLOOR_RE = re.compile(r"floor\s*(\d+)")
 
+GREETING = (
+    "Hey! I'm the Ethara assistant. I can tell you where someone sits, which "
+    "seats are free on a floor, how big or how seated a project is, and how "
+    "full the office is overall - just ask."
+)
+
+# ai_nl aliases this, so Groq-up and Groq-down refusals read identically.
+REFUSAL = (
+    "Sorry, I can't help with that. I only answer questions about Ethara's "
+    "office: seats, people, projects, floors and occupancy."
+)
+
+_GREETING_PARTS = (
+    r"hi+", r"hey+", r"hello+", r"heya", r"hiya", r"yo", r"howdy", r"hola",
+    r"namaste", r"greetings", r"sup", r"what'?s up", r"good (?:morning|afternoon|evening|day)",
+    r"how are you(?: doing)?", r"how'?s it going", r"who are you", r"what are you",
+    r"what (?:can|do) you do", r"what can i ask", r"can you help(?: me)?", r"help",
+    r"thanks?(?: you)?", r"thx", r"ty", r"cheers", r"bye", r"goodbye",
+    r"there", r"please", r"assistant",
+)
+# Anchored whole-string: "hey" greets, "hey, where does Amit sit?" does not.
+_GREETING_RE = re.compile(r"^(?:(?:%s)[\s,.!?']*)+$" % "|".join(_GREETING_PARTS))
+
+# Matched as substrings: "allocat" covers allocate/allocation, "occupan" covers
+# occupancy/occupant.
+_DOMAIN_WORDS = (
+    "seat", "desk", "sit", "seated", "allocat", "assign", "vacan", "empty", "free",
+    "floor", "zone", "bay", "office", "workspace", "capacity", "room",
+    "employee", "staff", "people", "person", "headcount", "colleague",
+    "team", "member", "project", "department", "manager", "joiner", "onboard",
+    "occupan", "occupied", "utilization", "utilisation", "available", "directory",
+    "ethara", "@",
+)
+
 
 def answer_query(db: Session, query: str) -> str:
     q = query.lower()
+
+    if _GREETING_RE.match(q.strip()):
+        return GREETING
 
     # Same matching order as the mock: employee → floor availability →
     # project → utilization → fallback.
@@ -38,6 +75,10 @@ def answer_query(db: Session, query: str) -> str:
 
     if "utilization" in q or "occupied" in q or "occupancy" in q:
         return utilization_answer(db)
+
+    # Off-topic entirely → scoped refusal; on-topic but unmatched → guidance.
+    if not any(word in q for word in _DOMAIN_WORDS):
+        return REFUSAL
 
     return (
         "I couldn't match that to the directory. Try asking about a specific "

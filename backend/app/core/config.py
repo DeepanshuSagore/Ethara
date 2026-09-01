@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # Groq (AI assistant) — set in Phase 8 / deploy.
     groq_api_key: str = ""
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
 
     @property
     def cors_origins(self) -> list[str]:

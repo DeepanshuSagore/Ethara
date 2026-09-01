@@ -17,7 +17,7 @@ natural-language AI assistant.
 - **New Joiner Allocation** — pending-allocation queue and fast onboarding flow.
 - **Search & Filter** — across employees, seats, and projects.
 - **Dashboard & Analytics** — seat utilization, vacancy, headcount, per-floor/project metrics.
-- **AI Assistant** — ask questions in plain English: Groq (Llama 3.3) parses the question into a
+- **AI Assistant** — ask questions in plain English: Groq (GPT-OSS 120B) parses the question into a
   structured intent, answers are composed from real DB rows, and a deterministic engine takes
   over automatically if Groq is unavailable — the demo never breaks.
 - **Demo Mode** — instant role switcher (Admin / HR / Project / Employee), no login required.
@@ -36,7 +36,7 @@ natural-language AI assistant.
 | Backend   | FastAPI · Pydantic · SQLAlchemy 2.0 · Alembic                 |
 | Database  | PostgreSQL 17 (Neon)                                          |
 | Auth      | Demo Mode — role switcher (Admin / HR / Project / Employee)  |
-| AI        | Groq API (Llama 3.3) with deterministic fallback             |
+| AI        | Groq API (GPT-OSS 120B) with deterministic fallback             |
 | Deploy    | Vercel (frontend) · Render (backend) · Neon (database)       |
 
 ---

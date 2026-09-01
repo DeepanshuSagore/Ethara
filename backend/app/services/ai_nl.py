@@ -40,10 +40,7 @@ MAX_TURN_CHARS = 500
 MAX_ANSWER_CHARS = 1500
 MIN_CONFIDENCE = 0.5
 
-REFUSAL = (
-    "Sorry, I can't help with that. I only answer questions about Ethara's "
-    "office: seats, people, projects, floors and occupancy."
-)
+REFUSAL = ai_query.REFUSAL
 
 _INTENTS = {
     "employee_seat",

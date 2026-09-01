@@ -11,7 +11,7 @@ alembic upgrade head          # create the schema (SQLite by default)
 python -m app.seed.run        # seed data (see below)
 uvicorn app.main:app --reload
 ```
-Run the tests with `pytest` (66: schema smoke + endpoint contracts + every allocation rule +
+Run the tests with `pytest` (74: schema smoke + endpoint contracts + every allocation rule +
 the mocked Groq NL layer — the suite is fully offline and never calls Groq).
 The DB is `DATABASE_URL`-driven: SQLite locally, PostgreSQL (`postgresql+psycopg://…`,
 psycopg v3) on Render — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md).
@@ -55,13 +55,15 @@ curl -X POST localhost:8000/ai/query -H 'Content-Type: application/json' \
 ## AI assistant (Phase 8)
 
 `POST /ai/query` runs NL → structured query: Groq (`GROQ_MODEL`, default
-`llama-3.3-70b-versatile`, JSON mode via its OpenAI-compatible API) parses the question into an
+`openai/gpt-oss-120b`, JSON mode via its OpenAI-compatible API) parses the question into an
 intent + entities, `app/services/ai_nl.py` executes that intent against the database, and the
 answer is composed from real DB rows — the model never free-generates facts. On any failure
 (no `GROQ_API_KEY`, HTTP error, timeout, rate limit, bad JSON, unknown intent, low confidence)
 it falls back to the Phase 6 deterministic keyword engine (`app/services/ai_query.py`), so the
 endpoint works offline and never 500s. Off-topic or prompt-injection queries get a scoped
-refusal; queries over 500 chars skip Groq entirely.
+refusal, and conversational openers ("hey", "what can you do?") get a short greeting - both
+live in the Groq layer *and*, independently, in the deterministic engine, so they survive a
+Groq outage. Queries over 500 chars skip Groq entirely.
 
 No extra dependency: the Groq call is a single `httpx` POST (the groq SDK warns on
 Python 3.14 — see [../DEBUGGING_NOTES.md](../DEBUGGING_NOTES.md)). Set `GROQ_API_KEY` in

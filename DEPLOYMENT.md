@@ -76,7 +76,7 @@ Environment variables:
 |---|---|
 | `DATABASE_URL` | **internal** connection string, scheme rewritten to `postgresql+psycopg://` |
 | `GROQ_API_KEY` | Groq key (set via API, never committed) |
-| `GROQ_MODEL` | `llama-3.3-70b-versatile` |
+| `GROQ_MODEL` | `openai/gpt-oss-120b` |
 | `CORS_ORIGINS_RAW` | `https://ethara-snowy.vercel.app,https://ethara-deepanshus-projects-129a43e3.vercel.app,https://ethara-git-main-deepanshus-projects-129a43e3.vercel.app,http://localhost:3000` |
 | `PYTHON_VERSION` | `3.14.3` — matches the local venv and the requirements pins exactly |
 
@@ -139,6 +139,12 @@ edits via API do not restart the service by themselves** (`POST /v1/services/{sr
    `SSL SYSCALL error: Operation timed out`; appending
    `sslmode=require&keepalives=1&keepalives_idle=30&keepalives_interval=10&keepalives_count=9`
    to the external URL made the migrate + seed reliable.
+6. **Groq retires models on a schedule and the failure is silent** — the Phase 8 pick
+   `llama-3.3-70b-versatile` was shut down 2026-08-16. Because the NL layer catches every Groq
+   error and falls back to the deterministic engine, nothing 500s and nothing looks broken: the
+   assistant just quietly stops answering anything past the keyword intents. Probe for it with a
+   question only the NL layer can parse ("which floor has the most free seats?") - if that misses,
+   `GROQ_MODEL` is dead. Now `openai/gpt-oss-120b`.
 
 ## 6. Post-deploy verification (all against production)
 
