@@ -9,7 +9,12 @@ rule 7 (duplicate seat position), rule 8 (dashboard recomputes live).
 from datetime import UTC, datetime
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
 
+from app.core.config import settings
+from app.core.database import get_db
+from app.main import app as fastapi_app
 from app.models import Employee, Project, Seat, SeatAllocation
 from app.services import ai_query
 
@@ -97,6 +102,52 @@ def test_openapi_lists_every_spec_path(client):
     spec = client.get("/openapi.json").json()
     for method, path in SPEC_PATHS:
         assert method in spec["paths"].get(path, {}), f"{method.upper()} {path} missing"
+
+
+# --- Health -------------------------------------------------------------------
+
+def test_health_reports_a_live_database(client, db):
+    response = client.get("/health")
+    assert response.status_code == 200
+    assert response.json() == {
+        "status": "ok",
+        "database": "up",
+        "dialect": db.get_bind().dialect.name,
+        "version": fastapi_app.version,
+        "groq_configured": False,
+    }
+
+
+def test_health_reports_the_groq_key_as_a_boolean_only(client, monkeypatch):
+    monkeypatch.setattr(settings, "groq_api_key", "gsk-not-a-real-key")
+    response = client.get("/health")
+    assert response.json()["groq_configured"] is True
+    assert "gsk-not-a-real-key" not in response.text
+
+
+def test_health_returns_503_when_the_database_is_unreachable(client):
+    # SQLite cannot create a database under a directory that does not exist, so
+    # this engine fails on connect the way an unreachable Postgres does - the
+    # same SQLAlchemyError path, without needing a server to stop.
+    unreachable = create_engine("sqlite:////nonexistent-directory/ethara.db")
+
+    def broken_db():
+        session = Session(bind=unreachable)
+        try:
+            yield session
+        finally:
+            session.close()
+
+    fastapi_app.dependency_overrides[get_db] = broken_db
+    try:
+        response = client.get("/health")
+    finally:
+        unreachable.dispose()
+
+    assert response.status_code == 503
+    body = response.json()
+    assert body["status"] == "degraded"
+    assert body["database"] == "down"
 
 
 # --- Employees ---------------------------------------------------------------
