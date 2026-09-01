@@ -60,9 +60,43 @@ Ethara/
 
 ## 🚀 Getting Started
 
+### One command (Docker)
+
+Needs Docker only — no Python, no Node, no database setup.
+
+```bash
+git clone https://github.com/DeepanshuSagore/Ethara.git
+cd Ethara
+docker compose up --build
+```
+
+That brings up PostgreSQL 17, applies the Alembic migrations, seeds ~4,987
+employees / 5,600 seats / 11 projects on the first run, and serves:
+
+| | |
+|---|---|
+| UI | http://localhost:3000 |
+| API | http://localhost:8000 |
+| Swagger | http://localhost:8000/docs |
+
+The API waits for Postgres to report *healthy* before migrating, and the
+frontend waits for the API, so the first run on a clean machine works without
+retries. Seeding is skipped on later boots because the data is already there;
+to rebuild the dataset deliberately:
+
+```bash
+docker compose run --rm seed
+```
+
+Every setting has a working default. Copy `.env.example` to `.env` only if you
+want to change ports, database credentials, or add a `GROQ_API_KEY` — the
+assistant runs on its deterministic engine without one.
+
+### Running it directly (no Docker)
+
 Run both servers together — the frontend reads live data from the API.
 
-### 1. Backend (FastAPI on :8000)
+#### 1. Backend (FastAPI on :8000)
 ```bash
 cd backend
 python -m venv .venv && source .venv/bin/activate
@@ -72,7 +106,7 @@ python -m app.seed.run           # seed ~5,000 employees / 5,600 seats / 11 proj
 uvicorn app.main:app --reload    # http://localhost:8000  (Swagger at /docs)
 ```
 
-### 2. Frontend (Next.js on :3000)
+#### 2. Frontend (Next.js on :3000)
 ```bash
 cd frontend
 npm install
