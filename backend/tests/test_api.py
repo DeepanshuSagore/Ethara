@@ -6,14 +6,14 @@ rule 3 (release → AVAILABLE, also on deactivate), rule 4 (RESERVED/MAINTENANCE
 not allocatable), rule 5 (proximity suggestions), rule 6 (duplicate email),
 rule 7 (duplicate seat position), rule 8 (dashboard recomputes live).
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
 from app.models import Employee, Project, Seat, SeatAllocation
 from app.services import ai_query
 
-NOW = datetime(2026, 7, 13, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 13, tzinfo=UTC)
 
 SPEC_PATHS = {
     ("post", "/employees"),
@@ -37,16 +37,16 @@ SPEC_PATHS = {
 
 
 def make_employee(project_id: int, n: int, **overrides) -> Employee:
-    defaults = dict(
-        employee_code=f"ETH-{n:04d}",
-        name=f"Person {n}",
-        email=f"person{n}@ethara.ai",
-        department="Engineering",
-        role="Software Engineer",
-        joining_date=NOW,
-        status="ACTIVE",
-        project_id=project_id,
-    )
+    defaults = {
+        "employee_code": f"ETH-{n:04d}",
+        "name": f"Person {n}",
+        "email": f"person{n}@ethara.ai",
+        "department": "Engineering",
+        "role": "Software Engineer",
+        "joining_date": NOW,
+        "status": "ACTIVE",
+        "project_id": project_id,
+    }
     return Employee(**{**defaults, **overrides})
 
 

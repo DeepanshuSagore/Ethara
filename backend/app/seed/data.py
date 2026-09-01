@@ -7,12 +7,12 @@ running 1..N across bays within a floor+zone, same per-project home-zone
 clustering, and Amit Sharma / amit@ethara.ai as employee #1 (the brief's
 AI-assistant example query).
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 SEED = 20260713  # same fixed seed as the frontend mock generator
 
 # Fixed reference date so reruns produce byte-identical data (no now() drift).
-BASE_DATE = datetime(2026, 7, 13, tzinfo=timezone.utc)
+BASE_DATE = datetime(2026, 7, 13, tzinfo=UTC)
 
 # --- Building layout: 5 floors × 2 zones × 80 bays × 7 seats = 5,600 seats ---
 FLOORS = (1, 2, 3, 4, 5)

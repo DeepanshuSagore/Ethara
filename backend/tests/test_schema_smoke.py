@@ -5,7 +5,7 @@ rule 1 (one ACTIVE allocation per employee), rule 2 (one ACTIVE employee per
 seat), rule 6 (duplicate email rejected), rule 7 (duplicate seat position
 rejected).
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 from sqlalchemy.exc import IntegrityError
@@ -13,30 +13,30 @@ from sqlalchemy.exc import IntegrityError
 from app.models import Employee, Project, Seat, SeatAllocation
 from app.schemas import EmployeeRead, ProjectRead, SeatAllocationRead, SeatRead
 
-NOW = datetime(2026, 7, 13, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 13, tzinfo=UTC)
 
 
 def make_project(**overrides):
-    defaults = dict(name="Indigo", description="Core platform", manager_name="Priya Patel")
+    defaults = {"name": "Indigo", "description": "Core platform", "manager_name": "Priya Patel"}
     return Project(**{**defaults, **overrides})
 
 
 def make_employee(project, **overrides):
-    defaults = dict(
-        employee_code="ETH-0001",
-        name="Amit Sharma",
-        email="amit@ethara.ai",
-        department="Engineering",
-        role="Software Engineer",
-        joining_date=NOW,
-        status="ACTIVE",
-        project=project,
-    )
+    defaults = {
+        "employee_code": "ETH-0001",
+        "name": "Amit Sharma",
+        "email": "amit@ethara.ai",
+        "department": "Engineering",
+        "role": "Software Engineer",
+        "joining_date": NOW,
+        "status": "ACTIVE",
+        "project": project,
+    }
     return Employee(**{**defaults, **overrides})
 
 
 def make_seat(**overrides):
-    defaults = dict(floor=1, zone="B", bay=4, seat_number=23, seat_code="B4-23")
+    defaults = {"floor": 1, "zone": "B", "bay": 4, "seat_number": 23, "seat_code": "B4-23"}
     return Seat(**{**defaults, **overrides})
 
 

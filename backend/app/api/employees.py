@@ -3,7 +3,7 @@
 POST /employees · GET /employees (?search=&department=&role=&project_id=&status=)
 GET /employees/{id} · PUT /employees/{id} · DELETE /employees/{id} (deactivate)
 """
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import func, or_, select
@@ -54,11 +54,11 @@ def create_employee(payload: EmployeeCreate, db: DbDep):
     db.add(employee)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Employee email or code already exists."
-        )
+        ) from exc
     db.refresh(employee)
     return employee
 
@@ -71,7 +71,7 @@ def create_employee(payload: EmployeeCreate, db: DbDep):
 def list_employees(
     filters: Annotated[EmployeeFilterParams, Depends()],
     db: DbDep,
-    limit: Annotated[Optional[int], Query(ge=1, description="Max rows (default: all)")] = None,
+    limit: Annotated[int | None, Query(ge=1, description="Max rows (default: all)")] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     stmt = select(Employee).order_by(Employee.id)
@@ -125,11 +125,11 @@ def update_employee(id: int, payload: EmployeeUpdate, db: DbDep):
         setattr(employee, key, value)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Update conflicts with an existing employee."
-        )
+        ) from exc
     db.refresh(employee)
     return employee
 

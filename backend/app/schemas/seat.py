@@ -1,6 +1,6 @@
 """Seat request/response schemas (mirrors frontend Seat type)."""
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
 from pydantic import BaseModel, model_validator
 
@@ -13,23 +13,23 @@ class SeatCreate(BaseModel):
     bay: int
     seat_number: int
     # Display code `{zone}{bay}-{seat_number}` — derived when omitted.
-    seat_code: Optional[str] = None
+    seat_code: str | None = None
     status: SeatStatus = "AVAILABLE"
 
     @model_validator(mode="after")
-    def derive_seat_code(self) -> "SeatCreate":
+    def derive_seat_code(self) -> SeatCreate:
         if self.seat_code is None:
             self.seat_code = f"{self.zone}{self.bay}-{self.seat_number}"
         return self
 
 
 class SeatUpdate(BaseModel):
-    floor: Optional[int] = None
-    zone: Optional[str] = None
-    bay: Optional[int] = None
-    seat_number: Optional[int] = None
-    seat_code: Optional[str] = None
-    status: Optional[SeatStatus] = None
+    floor: int | None = None
+    zone: str | None = None
+    bay: int | None = None
+    seat_number: int | None = None
+    seat_code: str | None = None
+    status: SeatStatus | None = None
 
 
 class SeatRead(ReadSchema):
@@ -46,9 +46,9 @@ class SeatRead(ReadSchema):
 class SeatFilterParams(BaseModel):
     """Query params for GET /seats (Phase 6)."""
 
-    status: Optional[SeatStatus] = None
-    floor: Optional[int] = None
-    zone: Optional[str] = None
+    status: SeatStatus | None = None
+    floor: int | None = None
+    zone: str | None = None
 
 
 # Business rule 5 — ranking labels, mirrors frontend SeatSuggestion.

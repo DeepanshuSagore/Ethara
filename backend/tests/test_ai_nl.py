@@ -8,7 +8,7 @@ httpx.post is monkeypatched with real httpx.Response objects so the JSON and
 raise_for_status handling in ai_nl is exercised for real.
 """
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 import pytest
@@ -17,7 +17,7 @@ from app.core.config import settings
 from app.models import Employee, Project, Seat, SeatAllocation
 from app.services import ai_nl
 
-NOW = datetime(2026, 7, 13, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 13, tzinfo=UTC)
 
 
 @pytest.fixture()

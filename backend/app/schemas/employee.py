@@ -1,6 +1,5 @@
 """Employee request/response schemas (mirrors frontend Employee type)."""
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -20,14 +19,14 @@ class EmployeeCreate(BaseModel):
 
 
 class EmployeeUpdate(BaseModel):
-    employee_code: Optional[str] = None
-    name: Optional[str] = None
-    email: Optional[str] = None
-    department: Optional[str] = None
-    role: Optional[str] = None
-    joining_date: Optional[datetime] = None
-    status: Optional[EmployeeStatus] = None
-    project_id: Optional[int] = None
+    employee_code: str | None = None
+    name: str | None = None
+    email: str | None = None
+    department: str | None = None
+    role: str | None = None
+    joining_date: datetime | None = None
+    status: EmployeeStatus | None = None
+    project_id: int | None = None
 
 
 class EmployeeRead(ReadSchema):
@@ -47,8 +46,8 @@ class EmployeeRead(ReadSchema):
 class EmployeeFilterParams(BaseModel):
     """Query params for GET /employees (Phase 6)."""
 
-    search: Optional[str] = None
-    department: Optional[str] = None
-    role: Optional[str] = None
-    project_id: Optional[int] = None
-    status: Optional[EmployeeStatus] = None
+    search: str | None = None
+    department: str | None = None
+    role: str | None = None
+    project_id: int | None = None
+    status: EmployeeStatus | None = None

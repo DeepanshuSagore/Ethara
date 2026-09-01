@@ -31,9 +31,11 @@ def create_project(payload: ProjectCreate, db: DbDep):
     db.add(project)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status.HTTP_409_CONFLICT, "Project name already exists.")
+        raise HTTPException(
+            status.HTTP_409_CONFLICT, "Project name already exists."
+        ) from exc
     db.refresh(project)
     return project
 

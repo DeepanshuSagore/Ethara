@@ -6,7 +6,7 @@ Routers are mounted at ROOT paths per the brief (e.g. /employees,
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-import app.models  # noqa: F401 — register all tables on Base at import time
+import app.models  # imported for its side effect: registers all tables on Base
 from app.api import ai, allocations, dashboard, employees, projects, seats
 from app.core.config import settings
 

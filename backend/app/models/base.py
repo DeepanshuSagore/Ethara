@@ -4,7 +4,7 @@ Status values are stored as plain strings with CHECK constraints (portable
 across SQLite and PostgreSQL, unlike native enums) and mirror
 frontend/src/types/index.ts exactly.
 """
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 EMPLOYEE_STATUSES = ("ACTIVE", "ON_LEAVE", "EXITED", "PENDING_ALLOCATION")
 PROJECT_STATUSES = ("ACTIVE", "ON_HOLD", "COMPLETED")
@@ -14,7 +14,7 @@ ALLOCATION_STATUSES = ("ACTIVE", "RELEASED")
 
 def utcnow() -> datetime:
     """Timezone-aware UTC now — all timestamps are stored as UTC."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def status_check(column: str, values: tuple[str, ...]) -> str:

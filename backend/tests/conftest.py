@@ -41,7 +41,7 @@ def engine():
 
 
 @pytest.fixture()
-def db(engine) -> Generator[Session, None, None]:
+def db(engine) -> Generator[Session]:
     factory = sessionmaker(bind=engine, autocommit=False, autoflush=False)
     session = factory()
     try:
@@ -51,7 +51,7 @@ def db(engine) -> Generator[Session, None, None]:
 
 
 @pytest.fixture()
-def client(db) -> Generator[TestClient, None, None]:
+def client(db) -> Generator[TestClient]:
     """API test client whose requests share the test's in-memory session."""
 
     def override_get_db():

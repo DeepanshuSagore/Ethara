@@ -5,9 +5,8 @@ from logging.config import fileConfig
 
 from sqlalchemy import engine_from_config, pool
 
-from alembic import context
-
 import app.models  # noqa: F401 — register all tables on Base for autogenerate
+from alembic import context
 from app.core.config import settings
 from app.core.database import Base
 

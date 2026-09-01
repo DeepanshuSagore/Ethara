@@ -4,7 +4,7 @@ Current seat = the employee's (at most one) ACTIVE row; releases keep the row
 as history with allocation_status=RELEASED and a released_date.
 """
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, String, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -51,7 +51,7 @@ class SeatAllocation(Base):
     project_id: Mapped[int] = mapped_column(ForeignKey("projects.id"), index=True)
     allocation_status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
     allocation_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
-    released_date: Mapped[Optional[datetime]] = mapped_column(
+    released_date: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 

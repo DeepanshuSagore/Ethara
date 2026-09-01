@@ -1,6 +1,5 @@
 """SeatAllocation schemas + the allocate/release request bodies for Phase 6."""
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -14,7 +13,7 @@ class SeatAllocationRead(ReadSchema):
     project_id: int
     allocation_status: AllocationStatus
     allocation_date: datetime
-    released_date: Optional[datetime] = None
+    released_date: datetime | None = None
 
 
 class SeatAllocateRequest(BaseModel):

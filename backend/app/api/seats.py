@@ -5,7 +5,7 @@ POST /seats/allocate · POST /seats/release, plus GET /seats/suggestions
 (rule 5 ranking for the new-joiners screen) and GET /seats/{id}.
 Static paths are declared before /{id} so they never shadow-match.
 """
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
@@ -56,11 +56,11 @@ def create_seat(payload: SeatCreate, db: DbDep):
     db.add(seat)
     try:
         db.commit()
-    except IntegrityError:
+    except IntegrityError as exc:
         db.rollback()
         raise HTTPException(
             status.HTTP_409_CONFLICT, "Seat position already exists in this floor/zone."
-        )
+        ) from exc
     db.refresh(seat)
     return seat
 
@@ -69,7 +69,7 @@ def create_seat(payload: SeatCreate, db: DbDep):
 def list_seats(
     filters: Annotated[SeatFilterParams, Depends()],
     db: DbDep,
-    limit: Annotated[Optional[int], Query(ge=1, description="Max rows (default: all)")] = None,
+    limit: Annotated[int | None, Query(ge=1, description="Max rows (default: all)")] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     stmt = select(Seat).order_by(Seat.id)
@@ -93,8 +93,8 @@ def list_seats(
 )
 def list_available_seats(
     db: DbDep,
-    floor: Annotated[Optional[int], Query()] = None,
-    zone: Annotated[Optional[str], Query()] = None,
+    floor: Annotated[int | None, Query()] = None,
+    zone: Annotated[str | None, Query()] = None,
 ):
     stmt = select(Seat).where(Seat.status == "AVAILABLE").order_by(Seat.id)
     if floor is not None:

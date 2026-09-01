@@ -25,7 +25,7 @@ def _check(label: str, ok: bool) -> None:
 
 def _status_counts(session: Session, model, column) -> dict[str, int]:
     rows = session.execute(select(column, func.count()).group_by(column)).all()
-    return {status: count for status, count in rows}
+    return dict(rows)
 
 
 def verify() -> int:
@@ -55,7 +55,10 @@ def verify() -> int:
         print("\n=== §5b targets ===")
         _check(f"projects == 11 (got {n_projects})", n_projects == 11)
         names = set(session.scalars(select(Project.name)))
-        _check("project names are the 11 exact names", names == {p["name"] for p in d.PROJECT_SEEDS})
+        _check(
+            "project names are the 11 exact names",
+            names == {p["name"] for p in d.PROJECT_SEEDS},
+        )
         non_active = session.scalar(
             select(func.count()).select_from(Project).where(Project.status != "ACTIVE")
         )
@@ -110,7 +113,8 @@ def verify() -> int:
             ).all()
         )
         _check(
-            f"floor occupancy uneven (spread {floor_occupied[-1] - floor_occupied[0]} seats >= 100)",
+            f"floor occupancy uneven (spread "
+            f"{floor_occupied[-1] - floor_occupied[0]} seats >= 100)",
             floor_occupied and floor_occupied[-1] - floor_occupied[0] >= 100,
         )
 
@@ -135,7 +139,10 @@ def verify() -> int:
 
         # At most one ACTIVE allocation per employee and per seat (the DB's
         # partial unique indexes guarantee this; re-checked independently here).
-        for label, column in (("employee", SeatAllocation.employee_id), ("seat", SeatAllocation.seat_id)):
+        for label, column in (
+            ("employee", SeatAllocation.employee_id),
+            ("seat", SeatAllocation.seat_id),
+        ):
             dupes = session.execute(
                 select(column)
                 .where(SeatAllocation.allocation_status == "ACTIVE")

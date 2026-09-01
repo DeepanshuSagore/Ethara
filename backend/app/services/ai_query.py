@@ -39,7 +39,7 @@ _GREETING_PARTS = (
     r"there", r"please", r"assistant",
 )
 # Anchored whole-string: "hey" greets, "hey, where does Amit sit?" does not.
-_GREETING_RE = re.compile(r"^(?:(?:%s)[\s,.!?']*)+$" % "|".join(_GREETING_PARTS))
+_GREETING_RE = re.compile(rf"^(?:(?:{'|'.join(_GREETING_PARTS)})[\s,.!?']*)+$")
 
 # Matched as substrings: "allocat" covers allocate/allocation, "occupan" covers
 # occupancy/occupant.

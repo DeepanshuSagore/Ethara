@@ -5,7 +5,7 @@ shown "who sits where" since Phase 2 (employee list/detail seat, seat-dialog
 occupant). GET /allocations closes that gap without touching any spec path:
 filter by employee_id / seat_id / status to resolve employee ↔ seat links.
 """
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy import select
@@ -27,10 +27,10 @@ DbDep = Annotated[Session, Depends(get_db)]
 )
 def list_allocations(
     db: DbDep,
-    employee_id: Annotated[Optional[int], Query()] = None,
-    seat_id: Annotated[Optional[int], Query()] = None,
-    status: Annotated[Optional[AllocationStatus], Query()] = None,
-    limit: Annotated[Optional[int], Query(ge=1, description="Max rows (default: all)")] = None,
+    employee_id: Annotated[int | None, Query()] = None,
+    seat_id: Annotated[int | None, Query()] = None,
+    status: Annotated[AllocationStatus | None, Query()] = None,
+    limit: Annotated[int | None, Query(ge=1, description="Max rows (default: all)")] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
     stmt = select(SeatAllocation).order_by(SeatAllocation.id)

@@ -1,6 +1,5 @@
 """Project request/response schemas (mirrors frontend Project type)."""
 from datetime import datetime
-from typing import Optional
 
 from pydantic import BaseModel
 
@@ -15,10 +14,10 @@ class ProjectCreate(BaseModel):
 
 
 class ProjectUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    manager_name: Optional[str] = None
-    status: Optional[ProjectStatus] = None
+    name: str | None = None
+    description: str | None = None
+    manager_name: str | None = None
+    status: ProjectStatus | None = None
 
 
 class ProjectRead(ReadSchema):
