@@ -1,16 +1,31 @@
-"""Shared fixtures — fresh in-memory SQLite schema per test."""
+"""Shared fixtures — a fresh schema per test, on either engine.
+
+The suite runs against in-memory SQLite by default because it is fast enough
+to run on every save. Set TEST_DATABASE_URL to a PostgreSQL URL and every test
+runs a second time against Postgres as well:
+
+    TEST_DATABASE_URL=postgresql+psycopg://ethara:ethara@localhost:5433/ethara_test pytest
+
+That second pass is the point. Production runs Postgres; SQLite disagrees with
+it about type affinity, VARCHAR length enforcement, LIKE case sensitivity and
+the order rows come back in without an ORDER BY. A green SQLite-only suite
+proves the SQLite schema is correct and says nothing about the deployed one.
+"""
+import os
 from collections.abc import Generator
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, event
+from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 import app.models  # noqa: F401 — register all tables on Base
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app as fastapi_app
+
+POSTGRES_TEST_URL = os.getenv("TEST_DATABASE_URL", "")
 
 
 @pytest.fixture(autouse=True)
@@ -21,8 +36,7 @@ def offline_groq(monkeypatch):
     monkeypatch.setattr(settings, "groq_api_key", "")
 
 
-@pytest.fixture()
-def engine():
+def _sqlite_engine() -> Engine:
     engine = create_engine(
         "sqlite://",
         connect_args={"check_same_thread": False},
@@ -35,8 +49,36 @@ def engine():
         cursor.execute("PRAGMA foreign_keys=ON")
         cursor.close()
 
+    return engine
+
+
+def _postgres_engine() -> Engine:
+    # NullPool: each test drops and recreates the schema, and a pooled
+    # connection holding an old view of it deadlocks the DROP.
+    return create_engine(POSTGRES_TEST_URL, poolclass=NullPool)
+
+
+@pytest.fixture(
+    params=[
+        pytest.param("sqlite", id="sqlite"),
+        pytest.param(
+            "postgres",
+            id="postgres",
+            marks=pytest.mark.skipif(
+                not POSTGRES_TEST_URL,
+                reason="set TEST_DATABASE_URL to run this tier (see the module docstring)",
+            ),
+        ),
+    ]
+)
+def engine(request) -> Generator[Engine]:
+    engine = _sqlite_engine() if request.param == "sqlite" else _postgres_engine()
+    # In-memory SQLite starts empty every time; a real Postgres database does
+    # not, so drop first rather than assume a clean slate.
+    Base.metadata.drop_all(engine)
     Base.metadata.create_all(engine)
     yield engine
+    Base.metadata.drop_all(engine)
     engine.dispose()
 
 
@@ -52,7 +94,7 @@ def db(engine) -> Generator[Session]:
 
 @pytest.fixture()
 def client(db) -> Generator[TestClient]:
-    """API test client whose requests share the test's in-memory session."""
+    """API test client whose requests share the test's session."""
 
     def override_get_db():
         yield db
