@@ -323,3 +323,62 @@ def test_overlong_query_skips_groq(client, dataset, groq_key, monkeypatch):
     long_query = "where is my seat? " * 60  # > MAX_QUERY_CHARS
     assert len(long_query) > ai_nl.MAX_QUERY_CHARS
     assert ask(client, long_query)  # answered by the fallback, no crash
+
+
+# --- the parse cache: the demo's common path costs nothing -----------------------
+
+CANONICAL_PROMPTS = [
+    "Where is Amit Sharma seated?",
+    "Show all available seats on Floor 3",
+    "How many seats are occupied for Indigo?",
+    "What is the current seat utilization?",
+]
+
+
+@pytest.mark.parametrize("prompt", CANONICAL_PROMPTS)
+def test_canonical_prompts_answer_without_calling_groq(
+    client, dataset, groq_key, monkeypatch, prompt
+):
+    """The four suggested prompts are seeded, so a cold start costs no tokens."""
+    forbid_groq(monkeypatch)
+    assert ask(client, prompt)
+
+
+def test_cache_key_folds_case_whitespace_and_punctuation(client, dataset, groq_key, monkeypatch):
+    forbid_groq(monkeypatch)
+    assert "Amit Sharma" in ask(client, "  WHERE IS   Amit Sharma seated!!  ")
+
+
+def test_a_repeated_question_is_parsed_once(client, dataset, groq_key, monkeypatch):
+    calls = mock_groq(monkeypatch, {
+        "intent": "employee_seat", "email": None, "name": "Rohan",
+        "floor": None, "project": None, "confidence": 0.9,
+    })
+    first = ask(client, "which desk is Rohan at these days?")
+    second = ask(client, "which desk is Rohan at these days?")
+    assert first == second == ask(client, "Which desk is Rohan at these days")
+    assert len(calls) == 1, "the repeat should have been served from the cache"
+
+
+def test_a_follow_up_is_never_served_from_cache(client, dataset, groq_key, monkeypatch):
+    """History changes what a question means, so it must be parsed fresh."""
+    calls = mock_groq(monkeypatch, {
+        "intent": "floor_availability", "floor": 3, "email": None,
+        "name": None, "project": None, "confidence": 0.95,
+    })
+    ask(client, "any free seats on floor 3?")
+    response = client.post("/ai/query", json={
+        "query": "any free seats on floor 3?",
+        "history": [{"role": "user", "content": "what about floor 1?"}],
+    })
+    assert response.status_code == 200
+    assert len(calls) == 2, "the follow-up must not reuse the history-free parse"
+
+
+def test_a_cached_parse_still_answers_from_live_rows(client, db, dataset, groq_key, monkeypatch):
+    """Rule 8 survives the cache: the parse is reused, the answer is recomputed."""
+    forbid_groq(monkeypatch)
+    before = ask(client, "What is the current seat utilization?")
+    client.post("/seats/release", json={"seat_id": dataset["amit"].allocations[0].seat_id})
+    after = ask(client, "What is the current seat utilization?")
+    assert before != after, "the answer was cached and went stale"
