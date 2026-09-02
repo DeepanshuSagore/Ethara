@@ -19,21 +19,23 @@ psycopg v3) in production — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md)
 
 ## Testing
 
-74 tests: schema smoke + endpoint contracts + every allocation rule + the mocked Groq NL
-layer. The suite is fully offline — an autouse fixture blanks `GROQ_API_KEY`, so it never
-calls Groq even when `.env` holds a real key.
+94 tests: schema smoke + endpoint contracts + every allocation rule + the mocked Groq NL
+layer + health, request logging, rate limiting and the parse cache. The suite is fully
+offline — an autouse fixture blanks `GROQ_API_KEY`, so it never calls Groq even when
+`.env` holds a real key. Coverage is **77%** with branch coverage on, 91% excluding
+`app/seed/`.
 
 **Two engine tiers, and the second one is the point.**
 
 ```bash
-pytest                                  # SQLite only: 74 passed, 74 skipped, ~1s
+pytest                                  # SQLite only: 94 passed, 94 skipped, ~1s
 pytest --cov=app --cov-report=term-missing
 
 # Both engines. Needs a Postgres; compose already provides one on 5433.
 docker compose up -d db
 docker compose exec db psql -U ethara -d postgres -c "CREATE DATABASE ethara_test OWNER ethara;"
 TEST_DATABASE_URL=postgresql+psycopg://ethara:ethara@localhost:5433/ethara_test pytest
-# → 148 passed in 68s
+# → 188 passed in ~10s
 ```
 
 | Tier | Engine | Runs | Why |
@@ -81,7 +83,7 @@ on the primary key.
 | `GET /dashboard/summary` | Live headline metrics (rule 8) | — |
 | `GET /dashboard/project-utilization` | Headcount/seated/home zone per project | — |
 | `GET /dashboard/floor-utilization` | Seat counts + occupancy per floor | — |
-| `POST /ai/query` | `{"query": "…"}` → `{"answer": "…"}` — Groq NL parsing over the deterministic keyword engine (Phase 8, see below) | 422 empty query |
+| `POST /ai/query` | `{"query": "…"}` → `{"answer": "…"}` — Groq NL parsing over the deterministic keyword engine (Phase 8, see below) | 422 empty or over-long query · 429 rate limited (`Retry-After`) |
 
 Example:
 ```bash
@@ -106,6 +108,28 @@ Groq outage. Queries over 500 chars skip Groq entirely.
 No extra dependency: the Groq call is a single `httpx` POST (the groq SDK warns on
 Python 3.14 — see [../DEBUGGING_NOTES.md](../DEBUGGING_NOTES.md)). Set `GROQ_API_KEY` in
 `.env` (see `.env.example`); leave it empty to run purely deterministic.
+
+### Protecting the endpoint
+
+The demo is public and carries a real key, so `/ai/query` is the one route that is metered.
+
+| Guard | Behaviour |
+|---|---|
+| Per-IP rate limit | `AI_RATE_LIMIT_REQUESTS` (20) per `AI_RATE_LIMIT_WINDOW_SECONDS` (60), then **429 with `Retry-After`** |
+| Body cap | `query` is capped at 2,000 chars and `history` at 20 turns, so a payload cannot exceed ~42 KB → 422 |
+| Parse cache | The four suggested prompts are pre-seeded, so the demo's common path never calls Groq |
+
+The limiter is an in-process token bucket (`app/core/rate_limit.py`) rather than Redis: this
+runs as a single container, and an extra service to protect one endpoint would cost more to
+operate than the spend it saves. The trade-off is explicit — across multiple replicas the
+limit is per replica, not global. Buckets refill continuously rather than resetting on a
+fixed window, so a caller who waits is served immediately instead of queueing for a boundary.
+
+The cache stores the **parse**, not the answer. Answers are composed from live rows and
+business rule 8 requires them to move the instant a seat is allocated, so caching answers
+would serve a reviewer stale numbers. Caching the intent skips the provider call without
+touching freshness — `test_a_cached_parse_still_answers_from_live_rows` pins that down.
+Follow-ups are never served from cache: history changes what a question means.
 
 ## Logging
 
