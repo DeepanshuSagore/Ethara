@@ -85,6 +85,9 @@ Full detail, including what running it on Postgres did and did not find, is in
 | Database  | PostgreSQL 17 (Neon)                                          |
 | Auth      | Demo Mode — role switcher (Admin / HR / Project / Employee)  |
 | AI        | Groq API (GPT-OSS 120B) with deterministic fallback             |
+| Containers| Multi-stage Docker · Compose (Postgres 17 + API + frontend)   |
+| Quality   | ruff · mypy (staged strict) · pytest on two engines · GitHub Actions |
+| Ops       | JSON logs with request ids · DB-backed `/health` · per-IP rate limiting |
 | Deploy    | Vercel (frontend) · Render (backend) · Neon (database)       |
 
 ---
@@ -93,14 +96,18 @@ Full detail, including what running it on Postgres did and did not find, is in
 
 ```
 Ethara/
-├── frontend/          # Next.js app (UI, routing, components)
-├── backend/           # FastAPI app (models, APIs, services, seed)
+├── frontend/          # Next.js app (UI, routing, components) + Dockerfile
+├── backend/           # FastAPI app (models, APIs, services, seed) + Dockerfile
+├── compose.yaml       # db + api + frontend, healthchecked and ordered
+├── .env.example       # every variable compose reads, all with working defaults
+├── .github/workflows/ # CI: lint, types, tests on Postgres, both images
 ├── screenshots/       # captured from the live deployment
 ├── PROJECT_PLAN.md    # Phased build plan
 ├── AI_PROMPTS.md      # AI-tool usage log
 ├── DATABASE_SCHEMA.md # ER description + DDL
 ├── DEPLOYMENT.md      # deploy steps & gotchas
 ├── DEBUGGING_NOTES.md # issues & resolutions
+├── FUTURE.md          # deferred work, with the reasoning for each deferral
 └── README.md
 ```
 
@@ -186,10 +193,12 @@ through the API (try asking the Assistant: *"Where is my seat? My email is amit@
 ## 📚 Documentation
 
 - [PROJECT_PLAN.md](./PROJECT_PLAN.md) — phased plan & architecture
+- [backend/README.md](./backend/README.md) — endpoints, the two test tiers, logging, assistant guards
 - [AI_PROMPTS.md](./AI_PROMPTS.md) — AI usage log
 - [DATABASE_SCHEMA.md](./DATABASE_SCHEMA.md) — schema & DDL
 - [DEPLOYMENT.md](./DEPLOYMENT.md) — deploy steps, env vars, free-tier gotchas
 - [DEBUGGING_NOTES.md](./DEBUGGING_NOTES.md) — issues & resolutions
+- [FUTURE.md](./FUTURE.md) — what was deliberately left undone, and why
 - [screenshots/](./screenshots/) — captured from the live deployment
 
 ---
