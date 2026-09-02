@@ -182,6 +182,19 @@ def test_query_strings_never_reach_the_logs(client, dataset, log_lines):
     assert lines and all("amit@ethara.ai" not in json.dumps(line) for line in lines)
 
 
+def test_cross_origin_callers_can_read_the_operational_headers(client, monkeypatch):
+    """A browser only sees headers named in Access-Control-Expose-Headers.
+
+    Both of these are useless to the frontend without it, and nothing else in
+    the suite would notice: server-side every response carries them regardless.
+    """
+    monkeypatch.setattr(settings, "cors_origins_raw", "http://localhost:3000")
+    response = client.get("/health", headers={"Origin": "http://localhost:3000"})
+    exposed = response.headers.get("access-control-expose-headers", "")
+    assert "X-Request-ID" in exposed
+    assert "Retry-After" in exposed
+
+
 # --- Employees ---------------------------------------------------------------
 
 def test_create_employee_201_defaults_to_pending(client, dataset):

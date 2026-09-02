@@ -44,6 +44,10 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Browsers hide response headers outside the CORS safelist, so without this
+    # the frontend reads both as null even though they are on the wire. Invisible
+    # server-side: every curl and every test sees them fine.
+    expose_headers=["Retry-After", "X-Request-ID"],
 )
 
 DbDep = Annotated[Session, Depends(get_db)]
