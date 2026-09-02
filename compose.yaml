@@ -29,6 +29,7 @@ services:
       CORS_ORIGINS_RAW: ${CORS_ORIGINS_RAW:-http://localhost:3000}
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GROQ_MODEL: ${GROQ_MODEL:-openai/gpt-oss-120b}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
     ports:
       - "${API_HOST_PORT:-8000}:8000"
     depends_on:

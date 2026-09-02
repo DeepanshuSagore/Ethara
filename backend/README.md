@@ -107,6 +107,51 @@ No extra dependency: the Groq call is a single `httpx` POST (the groq SDK warns 
 Python 3.14 — see [../DEBUGGING_NOTES.md](../DEBUGGING_NOTES.md)). Set `GROQ_API_KEY` in
 `.env` (see `.env.example`); leave it empty to run purely deterministic.
 
+## Logging
+
+Every log record is one JSON object on stdout (`app/core/logging.py`), which is what the
+container runtime collects. `LOG_LEVEL` sets the root level, default `INFO`.
+
+**Per request** — one `ethara.request` line, carrying a request id. An inbound
+`X-Request-ID` is honoured so a trace survives the hop from the frontend or a proxy;
+otherwise one is minted. Either way it comes back on the response, which is what makes a
+user-reported error findable.
+
+```json
+{"ts":"2026-09-02T02:53:51+0530","level":"INFO","logger":"ethara.request","message":"request",
+ "request_id":"cbae0c1e8ff34ecc","method":"GET","path":"/health","status":200,"duration_ms":1.65}
+```
+
+**Per Groq call** — a `groq_call` line with the stage (`parse` or `chat`), the outcome, and
+the latency. When the deterministic engine takes over, a second `ai_fallback` line records
+*why*:
+
+```json
+{"level":"INFO","logger":"app.services.ai_nl","message":"groq call","event":"groq_call",
+ "stage":"parse","outcome":"error","latency_ms":4001.2,"model":"openai/gpt-oss-120b","error":"ReadTimeout"}
+{"level":"WARNING","logger":"app.services.ai_nl","message":"deterministic fallback engaged",
+ "event":"ai_fallback","reason":"parse_unusable","provider_called":true}
+```
+
+The severity split is the useful part. `provider_called: false` at `INFO` means the call was
+never made — no key configured, or the query was over the length cap; that is configuration,
+not an incident. `provider_called: true` at `WARNING` means Groq was called and the answer was
+unusable, and a burst of those is provider degradation. `reason` separates *failed*
+(`parse_unusable` after an HTTP error or timeout) from *answered unhelpfully* (`parse_unusable`
+after a low-confidence parse, distinguishable by the preceding `groq_call` outcome).
+
+**Deliberately not logged, anywhere:**
+
+| Omitted | Why |
+|---|---|
+| `GROQ_API_KEY` | `/health` reports the boolean `groq_configured`, never the value |
+| Query strings | `?search=` carries free text, and the assistant carries whatever the user typed |
+| Request and response bodies | The AI question and the employee payloads both hold personal data |
+| Employee names and emails | Answers are composed from them; the logs record shape and timing only |
+
+`test_query_strings_never_reach_the_logs` asserts the second row against the real formatter
+output rather than the record attributes, so a field that leaks fails the suite.
+
 ## Seed data
 ```bash
 python -m app.seed.run        # wipe + repopulate all four tables, then verify
