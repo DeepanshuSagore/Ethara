@@ -12,7 +12,13 @@ class AiChatTurn(BaseModel):
 
 
 class AiQueryRequest(BaseModel):
-    query: str = Field(min_length=1, examples=["Where is my seat? My email is amit@ethara.ai"])
+    # A body cap, not a UX limit: with history bounded too, a payload cannot
+    # exceed ~42 KB. Deliberately above ai_nl's 500-char Groq threshold —
+    # longer questions are still answered, just never sent upstream.
+    query: str = Field(
+        min_length=1, max_length=2000,
+        examples=["Where is my seat? My email is amit@ethara.ai"],
+    )
     # Recent turns only — the service re-caps length and count server-side.
     history: list[AiChatTurn] = Field(default_factory=list, max_length=20)
 

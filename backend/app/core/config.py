@@ -18,6 +18,11 @@ class Settings(BaseSettings):
     # Root log level for the JSON handler in app/core/logging.py.
     log_level: str = "INFO"
 
+    # POST /ai/query per client IP. Generous for a human clicking around,
+    # tight enough that a script cannot drain the Groq key.
+    ai_rate_limit_requests: int = 20
+    ai_rate_limit_window_seconds: float = 60.0
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.cors_origins_raw.split(",") if o.strip()]

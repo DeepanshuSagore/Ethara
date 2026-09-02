@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import NullPool, StaticPool
 
 import app.models  # noqa: F401 — register all tables on Base
+from app.api import ai as ai_router
 from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.logging import JsonFormatter
@@ -37,6 +38,17 @@ def offline_groq(monkeypatch):
     to the deterministic engine, even when backend/.env holds a real key.
     Groq-layer tests opt back in with a fake key and a mocked HTTP transport."""
     monkeypatch.setattr(settings, "groq_api_key", "")
+
+
+@pytest.fixture(autouse=True)
+def fresh_rate_limit():
+    """The limiter is a module-level singleton holding one bucket per client.
+
+    Without this, every /ai/query test spends from the same bucket and whichever
+    ones happen to run last get a 429 — an ordering-dependent suite. Tests that
+    exercise the limit deliberately do so from a clean bucket.
+    """
+    ai_router.limiter.reset()
 
 
 def _sqlite_engine() -> Engine:
