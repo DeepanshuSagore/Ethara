@@ -61,6 +61,7 @@ htmlcov/
 .agents/
 .playwright-mcp/
 improvement.md
+learn.md
 
 # Misc
 *.pem
