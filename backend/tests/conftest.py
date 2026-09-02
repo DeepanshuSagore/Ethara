@@ -28,6 +28,7 @@ from app.core.config import settings
 from app.core.database import Base, get_db
 from app.core.logging import JsonFormatter
 from app.main import app as fastapi_app
+from app.services import ai_nl
 
 POSTGRES_TEST_URL = os.getenv("TEST_DATABASE_URL", "")
 
@@ -49,6 +50,13 @@ def fresh_rate_limit():
     exercise the limit deliberately do so from a clean bucket.
     """
     ai_router.limiter.reset()
+
+
+@pytest.fixture(autouse=True)
+def fresh_parse_cache():
+    """Likewise for the parse cache: a parse cached by an earlier test would
+    silently skip the mocked Groq call a later one is asserting on."""
+    ai_nl.reset_parse_cache()
 
 
 def _sqlite_engine() -> Engine:

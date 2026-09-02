@@ -19,7 +19,9 @@ already pinned) — the groq SDK trips a pydantic.v1 UserWarning on Python 3.14
 """
 import json
 import logging
+import threading
 import time
+from collections import OrderedDict
 from typing import Any
 
 import httpx
@@ -41,6 +43,7 @@ MAX_HISTORY_TURNS = 8
 MAX_TURN_CHARS = 500
 MAX_ANSWER_CHARS = 1500
 MIN_CONFIDENCE = 0.5
+MAX_CACHED_PARSES = 512
 
 REFUSAL = ai_query.REFUSAL
 
@@ -59,6 +62,36 @@ _INTENTS = {
     "off_topic",
     "unknown",
 }
+
+# The four prompt cards in frontend/src/components/assistant/suggested-prompts.tsx
+# — keep in sync, or these silently stop hitting. Overwhelmingly the most-asked
+# questions on a public demo, and their parse never varies.
+# Caching the PARSE, not the answer: answers come from live DB rows and rule 8
+# requires them to move the instant a seat is allocated, so caching those would
+# serve stale numbers. Caching the intent skips the spend, not the freshness.
+_CANONICAL_PARSES: dict[str, dict[str, Any]] = {
+    "where is amit sharma seated": {
+        "intent": "employee_seat", "email": None, "name": "Amit Sharma",
+        "floor": None, "project": None, "confidence": 1.0,
+    },
+    "show all available seats on floor 3": {
+        "intent": "floor_availability", "email": None, "name": None,
+        "floor": 3, "project": None, "confidence": 1.0,
+    },
+    "how many seats are occupied for indigo": {
+        "intent": "project_occupancy", "email": None, "name": None,
+        "floor": None, "project": "Indigo", "confidence": 1.0,
+    },
+    "what is the current seat utilization": {
+        "intent": "utilization", "email": None, "name": None,
+        "floor": None, "project": None, "confidence": 1.0,
+    },
+}
+
+# LRU rather than unbounded: the keys are user-supplied text, so an unbounded
+# dict is a memory leak anyone could trigger.
+_parse_cache: OrderedDict[str, dict[str, Any]] = OrderedDict(_CANONICAL_PARSES)
+_cache_lock = threading.Lock()
 
 _SYSTEM_PROMPT = """\
 You are an intent parser for Ethara, an office seat-allocation and project-mapping system.
@@ -99,9 +132,18 @@ def answer_query(db: Session, query: str, history: list[dict[str, Any]] | None =
         return _fallback(db, query, "no_api_key")
     if len(query) > MAX_QUERY_CHARS:
         return _fallback(db, query, "query_too_long")
-    parsed = _parse_intent(query, turns)
+
+    # Only cacheable without history: "and floor 2?" means something different
+    # after every preceding turn, so a follow-up must always be parsed fresh.
+    cacheable = not turns
+    parsed = _cached_parse(query) if cacheable else None
     if parsed is None:
-        return _fallback(db, query, "parse_unusable")
+        parsed = _parse_intent(query, turns)
+        if parsed is None:
+            return _fallback(db, query, "parse_unusable")
+        if cacheable:
+            _remember_parse(query, parsed)
+
     answer = _execute(db, parsed)
     if answer is None:
         answer = _grounded_chat(db, query, turns)
@@ -124,6 +166,44 @@ def _fallback(db: Session, query: str, reason: str) -> str:
         extra={"event": "ai_fallback", "reason": reason, "provider_called": not skipped},
     )
     return ai_query.answer_query(db, query)
+
+
+def _cache_key(query: str) -> str:
+    """Fold the spellings a demo actually produces onto one entry.
+
+    Case, surrounding whitespace, doubled spaces and trailing punctuation all
+    vary between someone typing the question and someone clicking the card.
+    """
+    return " ".join(query.lower().split()).rstrip("?!. ")
+
+
+def _cached_parse(query: str) -> dict[str, Any] | None:
+    key = _cache_key(query)
+    with _cache_lock:
+        parsed = _parse_cache.get(key)
+        if parsed is None:
+            return None
+        _parse_cache.move_to_end(key)
+    logger.info(
+        "parse served from cache",
+        extra={"event": "parse_cache_hit", "intent": parsed["intent"]},
+    )
+    return dict(parsed)
+
+
+def _remember_parse(query: str, parsed: dict[str, Any]) -> None:
+    with _cache_lock:
+        _parse_cache[_cache_key(query)] = dict(parsed)
+        _parse_cache.move_to_end(_cache_key(query))
+        while len(_parse_cache) > MAX_CACHED_PARSES:
+            _parse_cache.popitem(last=False)
+
+
+def reset_parse_cache() -> None:
+    """Back to the seeded canonical entries — for tests."""
+    with _cache_lock:
+        _parse_cache.clear()
+        _parse_cache.update(_CANONICAL_PARSES)
 
 
 def _log_groq_call(stage: str, started: float, outcome: str, **fields: Any) -> None:
