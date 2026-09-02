@@ -20,7 +20,7 @@ Every figure below comes from a command in this repo, run on the Compose stack. 
 
 | Metric | Value | How it was measured |
 |---|---|---|
-| Tests | **94 tests · 188 runs** | Each test runs once per engine — `pytest` |
+| Tests | **95 tests · 190 runs** | Each test runs once per engine — `pytest` |
 | Coverage | **77%** branch · 91% excluding the seed CLI | `pytest --cov=app --cov-report=term-missing` |
 | Suite wall clock | 1.1 s SQLite · 10 s both engines | `pytest` with and without `TEST_DATABASE_URL` |
 | CI | ruff · mypy · suite on Postgres · both images | [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) |
@@ -39,12 +39,12 @@ The suite runs against **two engines**, and the second one is the point.
 
 ```bash
 cd backend
-pytest                                   # SQLite only — 94 passed, 94 skipped, ~1 s
+pytest                                   # SQLite only — 95 passed, 95 skipped, ~1 s
 
 docker compose up -d db
 docker compose exec db psql -U ethara -d postgres -c "CREATE DATABASE ethara_test OWNER ethara;"
 TEST_DATABASE_URL=postgresql+psycopg://ethara:ethara@localhost:5433/ethara_test pytest
-                                         # both engines — 188 passed, ~10 s
+                                         # both engines — 190 passed, ~10 s
 ```
 
 SQLite is the fast default so the suite runs on every save. Production runs Postgres, and the two

@@ -19,7 +19,7 @@ psycopg v3) in production — see [../DATABASE_SCHEMA.md](../DATABASE_SCHEMA.md)
 
 ## Testing
 
-94 tests: schema smoke + endpoint contracts + every allocation rule + the mocked Groq NL
+95 tests: schema smoke + endpoint contracts + every allocation rule + the mocked Groq NL
 layer + health, request logging, rate limiting and the parse cache. The suite is fully
 offline — an autouse fixture blanks `GROQ_API_KEY`, so it never calls Groq even when
 `.env` holds a real key. Coverage is **77%** with branch coverage on, 91% excluding
@@ -28,14 +28,14 @@ offline — an autouse fixture blanks `GROQ_API_KEY`, so it never calls Groq eve
 **Two engine tiers, and the second one is the point.**
 
 ```bash
-pytest                                  # SQLite only: 94 passed, 94 skipped, ~1s
+pytest                                  # SQLite only: 95 passed, 95 skipped, ~1s
 pytest --cov=app --cov-report=term-missing
 
 # Both engines. Needs a Postgres; compose already provides one on 5433.
 docker compose up -d db
 docker compose exec db psql -U ethara -d postgres -c "CREATE DATABASE ethara_test OWNER ethara;"
 TEST_DATABASE_URL=postgresql+psycopg://ethara:ethara@localhost:5433/ethara_test pytest
-# → 188 passed in ~10s
+# → 190 passed in ~10s
 ```
 
 | Tier | Engine | Runs | Why |
