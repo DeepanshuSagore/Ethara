@@ -6,11 +6,54 @@ A full-stack platform to manage **seat allocation** and **project mapping** for 
 serving Employee, HR, Admin, and Project-team workflows — with search, analytics dashboards, and a
 natural-language AI assistant.
 
-Every push runs `ruff` → `mypy` → **148 tests across SQLite and PostgreSQL 17** → both Docker
-images. Coverage is **75%** on branch coverage (91% excluding the one-off seed CLI).
+Every push runs `ruff` → `mypy` → the suite against **both SQLite and PostgreSQL 17** → both Docker
+images.
 
 > Built as a technical assessment. See [PROJECT_PLAN.md](./PROJECT_PLAN.md) for the full phased plan
 > and [AI_PROMPTS.md](./AI_PROMPTS.md) for AI-tool usage documentation.
+
+---
+
+## 📊 Measured results
+
+Every figure below comes from a command in this repo, run on the Compose stack. None are estimates.
+
+| Metric | Value | How it was measured |
+|---|---|---|
+| Tests | **94 tests · 188 runs** | Each test runs once per engine — `pytest` |
+| Coverage | **77%** branch · 91% excluding the seed CLI | `pytest --cov=app --cov-report=term-missing` |
+| Suite wall clock | 1.1 s SQLite · 10 s both engines | `pytest` with and without `TEST_DATABASE_URL` |
+| CI | ruff · mypy · suite on Postgres · both images | [`.github/workflows/ci.yml`](./.github/workflows/ci.yml) |
+| Container cold start | **12 s** to all services healthy | `docker compose down -v && docker compose up -d`, including migrations and seeding |
+| API p50 / p95 | **2.3 ms / 2.9 ms** | 1,000 requests across five endpoints, kept-alive, against the seeded Postgres |
+| Image sizes | 344 MB API · 433 MB frontend | `docker images` — multi-stage, non-root, standalone Next.js output |
+| Seeded dataset | 4,987 employees · 5,600 seats · 11 projects · 4,907 allocations | `python -m app.seed.verify` — 23 invariant checks |
+
+The cold-start number is the one worth reading twice: it covers Postgres starting, Alembic
+migrating, and ~15,000 rows being seeded before the API reports healthy. Seeding is skipped on
+later boots because the data is already there.
+
+## 🧪 Testing
+
+The suite runs against **two engines**, and the second one is the point.
+
+```bash
+cd backend
+pytest                                   # SQLite only — 94 passed, 94 skipped, ~1 s
+
+docker compose up -d db
+docker compose exec db psql -U ethara -d postgres -c "CREATE DATABASE ethara_test OWNER ethara;"
+TEST_DATABASE_URL=postgresql+psycopg://ethara:ethara@localhost:5433/ethara_test pytest
+                                         # both engines — 188 passed, ~10 s
+```
+
+SQLite is the fast default so the suite runs on every save. Production runs Postgres, and the two
+disagree about `LIKE` case sensitivity, `VARCHAR(n)` enforcement, type affinity and row order
+without an `ORDER BY` — so a green SQLite-only run proves the development schema is correct and
+says nothing about the deployed one. Nothing is marked single-engine; every test runs on both.
+
+Full detail, including what running it on Postgres did and did not find, is in
+[backend/README.md](./backend/README.md#testing).
 
 ---
 
